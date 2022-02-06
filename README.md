@@ -93,7 +93,7 @@ Simple example of using MNIST classifier within Flutter app.
 
 Working Flutter project can be found under the `example` folder.
 
-!['1' exmaple](assets\mnist1s.png) !['2' example](assets/mnist2s.png) !['3' example](assets/mnist3s.png) !['5' example](assets/mnist5s.png)
+!['1' exmaple](assets/mnist1s.png) !['2' example](assets/mnist2s.png) !['3' example](assets/mnist3s.png) !['5' example](assets/mnist5s.png)
 
 ## Additional information
 ### Supported layers:
