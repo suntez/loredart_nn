@@ -1,6 +1,6 @@
 
 ### _LoreDart NN_
-Simple library for Deep Neural Networks creating and training written in pure Dart.
+Simple library for creating and training Deep Neural Networks, written in pure Dart.
 
 Conceptually, the library has educational and entertainment purposes. Hope you will find it fun to use DNN with loredart_nn.
 
@@ -18,7 +18,7 @@ Here is a small example of creating MNIST classification Deep Neural Network:
 ```dart
   // List of 784 pixels for each digit
   List<List<double>> xTrain = data[0].sublist(0,30000);
-  // One-Hot encoded digit's label 
+  // One-Hot encoded digits' label 
   List<List<double>> yTrain = data[1].sublist(0,30000);
   List<List<double>> xTest = data[0].sublist(30000);
   List<List<double>> yTest = data[1].sublist(30000);
