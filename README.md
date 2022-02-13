@@ -71,7 +71,7 @@ To extract values from Matrix you can use `Matrix().matrix` getter or `Matrix().
 ### Save and load weights of model
 You can save weights and biases of trainable (aka Dense) layers into some directory.
 ```dart
-  // save parametrs into the `mnist_classifier/model_weights.bin` file
+  // save parameters into the `mnist_classifier/model_weights.bin` file
   model.saveWeights('mnist_classifier')
 ```
 > `saveWeights` method saves only weights and biases of Dense layers

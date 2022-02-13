@@ -11,7 +11,7 @@ import 'nabla_operator.dart';
 import 'optimizer.dart';
 
 /// Neural Network class
-/// 
+///
 /// ### Constructor parameters
 /// - `inputLenght` - Lenght of the input data List
 /// - `layers` - List of [Layer] with lenght >= 1
@@ -20,11 +20,11 @@ import 'optimizer.dart';
 /// - `name` - optional parameter, name of the NeuralNetwork
 /// - `useAccuracyMetric` - optional parameter, add accuracy metric computation while fitting (learning) or evaluating (testing).
 /// Can be used only for classsification tasks, with both One-Hot encoded and labeled target class representation.
-/// 
+///
 /// Example
 /// ```dart
 /// NeuralNetwork nnClasses = NeuralNetwork(784, // input length of 28 by 28 image
-///   [ 
+///   [
 ///     Normalization(), // preprocess normalization of data
 ///     Dense(128, activation: Activation.elu()), // 1st hidden layer
 ///     Dense(32, activation: Activation.leakyReLU()), // 2nd hidden layer
@@ -35,9 +35,9 @@ import 'optimizer.dart';
 ///   loss: Loss.mse(), /// for sparse can be [Loss.sparseCrossEntropy()]
 ///   optimizer: SGD(learningRate: 0.05, momentum: 0.99),
 ///   useAccuracyMetric: true) /// set [true] to compute classififcation accuracy
-/// 
-/// NeuralNetwork nnRegression = NeuralNetwork(10, // input length of customer features  
-///   [ 
+///
+/// NeuralNetwork nnRegression = NeuralNetwork(10, // input length of customer features
+///   [
 ///     Dense(32, activation: Activation.elu()), // hidden layer
 ///     Normalization()
 ///     Dense(1, activation: Activation.softmax()) // output layer
@@ -63,8 +63,12 @@ class NeuralNetwork extends Model {
   /// - `name` - optional parameter, name of the NeuralNetwork
   /// - `useAccuracyMetric` - optional parameter, add accuracy metric computation while fitting (learning) or evaluating (testing).
   /// Can be used only for classsification tasks, with both One-Hot encoded and labeled target class representation.
-  NeuralNetwork(int inputLength, List<Layer> layers, {required this.loss, Optimizer? optimizer, String? name, bool useAccuracyMetric = false})
-  : assert(layers.isNotEmpty) {
+  NeuralNetwork(int inputLength, List<Layer> layers,
+      {required this.loss,
+      Optimizer? optimizer,
+      String? name,
+      bool useAccuracyMetric = false})
+      : assert(layers.isNotEmpty) {
     this.name = name ?? 'NeuralNetwork';
     this.optimizer = optimizer ?? SGD();
     this.layers = layers.sublist(0);
@@ -78,7 +82,7 @@ class NeuralNetwork extends Model {
   void _initNN() {
     layers[0].init();
     for (int i = 1; i < layers.length; i += 1) {
-      layers[i].init(layers[i-1].units);
+      layers[i].init(layers[i - 1].units);
     }
   }
 
@@ -87,12 +91,13 @@ class NeuralNetwork extends Model {
     if (_isSparse) {
       return y[0][0] == _toSparseFromProbs(yP.flattenList());
     }
-    return _toSparseFromProbs(y.flattenList()) == _toSparseFromProbs(yP.flattenList());
+    return _toSparseFromProbs(y.flattenList()) ==
+        _toSparseFromProbs(yP.flattenList());
   }
 
   /// Return index of the max element of [probs]
-  /// 
-  /// Used for accuracy matric for classification models 
+  ///
+  /// Used for accuracy matric for classification models
   int _toSparseFromProbs(List<double> probs) {
     final max = probs.reduce(math.max);
     return probs.indexOf(max);
@@ -113,18 +118,22 @@ class NeuralNetwork extends Model {
     if (_useAccuracy) {
       _accuracy += _trueProbs(yTrue, yPredicted) ? 1 : 0;
     }
-    var gradients = NablaOperator.gradients(layers.where((layer) => layer.trainable).toList(), loss.dfunction(yTrue, yPredicted));
-    optimizer.applyGradients(gradients, layers.where((layer) => layer.trainable).toList());
+    var gradients = NablaOperator.gradients(
+        layers.where((layer) => layer.trainable).toList(),
+        loss.dfunction(yTrue, yPredicted));
+    optimizer.applyGradients(
+        gradients, layers.where((layer) => layer.trainable).toList());
   }
 
   /// Trainig function of the NeuralNetwork
-  void _fit(List<List<double>> x, List<List<double>> y, {int epochs = 1, bool verbose = true}) {
+  void _fit(List<List<double>> x, List<List<double>> y,
+      {int epochs = 1, bool verbose = true}) {
     assert(x.length == y.length);
     final percent = x.length;
     Duration meanTrainStepTime;
     DateTime tic;
     DateTime toc;
-    for (int i = 0; i < epochs; i +=1) {
+    for (int i = 0; i < epochs; i += 1) {
       _meanLoss = 0;
       _accuracy = 0;
       meanTrainStepTime = Duration();
@@ -134,26 +143,37 @@ class NeuralNetwork extends Model {
         toc = DateTime.now();
         meanTrainStepTime += toc.difference(tic);
         if (verbose && stdout.hasTerminal) {
-          stdout.write(
-            'epoch ${i+1}/$epochs |' + ((j+1) / percent * 100).toStringAsFixed(2) + '%| -> '
-            'mean secs per train step: ' + (meanTrainStepTime.inSeconds / (j+1)).toStringAsFixed(5) + 's, '
-            'mean loss [$loss]: '+ (_meanLoss / (j+1)).toStringAsFixed(6) +
-            (_useAccuracy ? ', accuracy: ' + (_accuracy / (j+1) * 100).toStringAsFixed(2) + '%' : '' ) +
-            '\r'
-          );
+          stdout.write('epoch ${i + 1}/$epochs |' +
+              ((j + 1) / percent * 100).toStringAsFixed(2) +
+              '%| -> '
+                  'mean secs per train step: ' +
+              (meanTrainStepTime.inSeconds / (j + 1)).toStringAsFixed(5) +
+              's, '
+                  'mean loss [$loss]: ' +
+              (_meanLoss / (j + 1)).toStringAsFixed(6) +
+              (_useAccuracy
+                  ? ', accuracy: ' +
+                      (_accuracy / (j + 1) * 100).toStringAsFixed(2) +
+                      '%'
+                  : '') +
+              '\r');
         }
       }
       if (verbose) {
         if (stdout.hasTerminal) {
-          stdout.write(
-            'epoch ${i+1}/$epochs |100%| -> '
-            'mean secs per train step: ' + (meanTrainStepTime.inSeconds / (percent)).toStringAsFixed(5) + 's, '
-            'mean loss [$loss]: '+ (_meanLoss / (percent)).toStringAsFixed(6) +
-            (_useAccuracy ? ', accuracy: ' + (_accuracy / (percent) * 100).toStringAsFixed(2) + '%' : '' ) +
-            '\r'
-          );
-        }
-        else {
+          stdout.write('epoch ${i + 1}/$epochs |100%| -> '
+                  'mean secs per train step: ' +
+              (meanTrainStepTime.inSeconds / (percent)).toStringAsFixed(5) +
+              's, '
+                  'mean loss [$loss]: ' +
+              (_meanLoss / (percent)).toStringAsFixed(6) +
+              (_useAccuracy
+                  ? ', accuracy: ' +
+                      (_accuracy / (percent) * 100).toStringAsFixed(2) +
+                      '%'
+                  : '') +
+              '\r');
+        } else {
           stdout.writeln();
         }
       }
@@ -165,46 +185,47 @@ class NeuralNetwork extends Model {
   }
 
   /// Call trainig (or fitting) process of [this] NeuralNetwork over given [x] and [y]
-  /// 
+  ///
   /// `x` - Input data (features)
-  /// 
+  ///
   /// `y` - Target value(s)
-  /// 
+  ///
   /// `epochs` - The number of iterations (repetitions) of runing backpropagation over given [x] and [y]
-  /// 
+  ///
   /// `verbose` - Write logs to the stdout
-  /// 
+  ///
   /// If [verbose] if `true` and `stdout` can be overwriten then throught the process logs will be updated
   /// if there is no `stdout` then only mean values for each [epoch] will be printed
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// // training data
   /// final x = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 1.0]];
   /// final y = [[1.0], [1.0], [2.0], [3.0]]; // number of '1' in the list
-  /// 
+  ///
   /// final nn = NeuralNetwork(3, // length of input vector
   /// [
   ///   Dense(16, activation: Activation.swish()),
   ///   Dense(1, activation: Activation.relu()) // output layer
   /// ], loss: Loss.mse(), optimizer: SGD(learningRate: 0.2, momentum: 0));
-  /// 
+  ///
   /// /// `fiting process`
   /// nn.fit(x, y, epochs: 100, verbose: true);
   /// // print 100 messages like that:
   /// // epoch 14/100 |100.00%| -> mean secs per train step: 0.00000s, mean loss [mse]: 0.010607
-  /// 
+  ///
   /// //testing process
   /// final xTest = [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
   /// final yTest = [[1.0], [2.0]];
   /// final param = nn.evaluate(xTest, yTest, verbose: true);
   /// print(param);
-  /// 
+  ///
   /// // use network for prediction
   /// final predicted = nn.predict([[1.0, 0.0, 1.0]]);
   /// print(predicted);
   /// ```
-  void fit(List<List<double>> x, List<List<double>> y, {int epochs = 1, bool verbose = false}) {
+  void fit(List<List<double>> x, List<List<double>> y,
+      {int epochs = 1, bool verbose = false}) {
     _fit(x, y, epochs: epochs, verbose: verbose);
   }
 
@@ -224,7 +245,8 @@ class NeuralNetwork extends Model {
   }
 
   /// Evaluation (testing) function of the NeuralNetwork
-  Map<String, double> _evaluate(List<List<double>> x, List<List<double>> y, {bool verbose = true}) {
+  Map<String, double> _evaluate(List<List<double>> x, List<List<double>> y,
+      {bool verbose = true}) {
     _meanLoss = 0;
     _accuracy = 0;
     final percent = x.length;
@@ -237,61 +259,71 @@ class NeuralNetwork extends Model {
       toc = DateTime.now();
       meanTrainStepTime += toc.difference(tic);
       if (verbose) {
-        stdout.write(
-          'evaluating ${j+1}/$percent |' + ((j+1) / percent * 100).toStringAsFixed(2) + '%| -> '
-          'mean secs per test step: ' + (meanTrainStepTime.inSeconds / (j+1)).toStringAsFixed(5) + 's, '
-          'mean loss [$loss]: '+ (_meanLoss / (j+1)).toStringAsFixed(6) +
-          (_useAccuracy ? ', accuracy: ' + (_accuracy / (j+1) * 100).toStringAsFixed(2) + '%' : '' ) +
-          '\r'
-        );
+        stdout.write('evaluating ${j + 1}/$percent |' +
+            ((j + 1) / percent * 100).toStringAsFixed(2) +
+            '%| -> '
+                'mean secs per test step: ' +
+            (meanTrainStepTime.inSeconds / (j + 1)).toStringAsFixed(5) +
+            's, '
+                'mean loss [$loss]: ' +
+            (_meanLoss / (j + 1)).toStringAsFixed(6) +
+            (_useAccuracy
+                ? ', accuracy: ' +
+                    (_accuracy / (j + 1) * 100).toStringAsFixed(2) +
+                    '%'
+                : '') +
+            '\r');
       }
     }
     if (verbose) {
       stdout.writeln();
     }
 
-    return _useAccuracy ? {'mean $loss' : _meanLoss / percent, 'accuracy' : _accuracy / percent} : {'mean $loss' : _meanLoss / percent};
+    return _useAccuracy
+        ? {'mean $loss': _meanLoss / percent, 'accuracy': _accuracy / percent}
+        : {'mean $loss': _meanLoss / percent};
   }
 
   /// Call evaluating or testing process of [this] NeuralNetwork
   ///
   /// `x` - Input data (features)
-  /// 
+  ///
   /// `y` - Target value(s)
-  /// 
+  ///
   /// `verbose` - Write logs to the stdout
-  /// 
+  ///
   /// If [verbose] if `true` and `stdout` can be overwriten then throught the process logs will be updated
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// // training data
   /// final x = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 1.0]];
   /// final y = [[1.0], [1.0], [2.0], [3.0]]; // number of '1' in the list
-  /// 
+  ///
   /// final nn = NeuralNetwork(3, // length of input vector
   /// [
   ///   Dense(16, activation: Activation.swish()),
   ///   Dense(1, activation: Activation.relu()) // output layer
   /// ], loss: Loss.mse(), optimizer: SGD(learningRate: 0.2, momentum: 0));
-  /// 
+  ///
   /// /// fiting process
   /// nn.fit(x, y, epochs: 100, verbose: true);
-  /// 
+  ///
   /// /// `testing process`
   /// final xTest = [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
   /// final yTest = [[1.0], [2.0]];
-  /// 
+  ///
   /// final param = nn.evaluate(xTest, yTest, verbose: true);
   /// // print message like:
   /// // evaluating 2/2 |100.00%| -> mean secs per test step: 0.00000s, mean loss [mse]: 0.003051
   /// print(param); // output: {mean mse: 0.0030511005740773813}
-  /// 
+  ///
   /// // use network for prediction
   /// final predicted = nn.predict([[1.0, 0.0, 1.0]]);
   /// print(predicted);
   /// ```
-  Map<String, double> evaluate(List<List<double>> x, List<List<double>> y, {bool verbose = true}) {
+  Map<String, double> evaluate(List<List<double>> x, List<List<double>> y,
+      {bool verbose = true}) {
     return _evaluate(x, y, verbose: verbose);
   }
 
@@ -302,9 +334,8 @@ class NeuralNetwork extends Model {
       for (Layer layer in layers.sublist(from)) {
         result = layer.act(result);
       }
-    }
-    else {
-      for (Layer layer in layers.sublist(from, to+1)) {
+    } else {
+      for (Layer layer in layers.sublist(from, to + 1)) {
         result = layer.act(result);
       }
     }
@@ -313,35 +344,36 @@ class NeuralNetwork extends Model {
 
   /// Prediction function for using of [this] NeuralNetwork
   List<Matrix> _predict(List<List<double>> data) {
-    return List<Matrix>.generate(data.length, (index) => _predictStep(data[index]));
+    return List<Matrix>.generate(
+        data.length, (index) => _predictStep(data[index]));
   }
 
   /// Call prediction process for [this] NeuralNetwork
-  /// 
+  ///
   /// `inputs` - data for the [neuralNetwork]
-  /// 
-  /// Return [List<Matrix>] with prediction for each input [List] from [inputs] 
-  /// 
+  ///
+  /// Return [List<Matrix>] with prediction for each input [List] from [inputs]
+  ///
   /// Example:
   /// ```dart
   /// // training data
   /// final x = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 1.0]];
   /// final y = [[1.0], [1.0], [2.0], [3.0]]; // number of '1' in the list
-  /// 
+  ///
   /// final nn = NeuralNetwork(3, // length of input vector
   /// [
   ///   Dense(16, activation: Activation.swish()),
   ///   Dense(1, activation: Activation.relu()) // output layer
   /// ], loss: Loss.mse(), optimizer: SGD(learningRate: 0.2, momentum: 0));
-  /// 
+  ///
   /// /// fiting process
   /// nn.fit(x, y, epochs: 100, verbose: true);
-  /// 
+  ///
   /// /// testing process
   /// final xTest = [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
   /// final yTest = [[1.0], [2.0]];
   /// final param = nn.evaluate(xTest, yTest, verbose: true);
-  /// 
+  ///
   /// /// `use network for prediction`
   /// final predicted = nn.predict([[1.0, 0.0, 1.0]]);
   /// print(predicted); /// `matrix 1⨯1 [[1.9687742233004546]] - pretty close to 2`
@@ -351,9 +383,9 @@ class NeuralNetwork extends Model {
   }
 
   /// Save weights and biases of trainable layers of [this] NeuralNetwork to the `$path/model_weights.bin` file
-  /// 
+  ///
   /// [path] should be a path to the folder
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// // first model
@@ -363,9 +395,9 @@ class NeuralNetwork extends Model {
   ///     Normalization(),
   ///     Dense(3, activation: Activation.softmax())
   ///   ], loss: Loos.mse());
-  /// 
+  ///
   /// nn.saveWeights('class_model');
-  /// 
+  ///
   /// // second model with same architecture
   /// final nn2 = NeuralNetwork(10,
   ///   [
@@ -373,11 +405,11 @@ class NeuralNetwork extends Model {
   ///     Normalization(),
   ///     Dense(3, activation: Activation.softmax())
   ///   ], loss: Loos.mse());
-  /// 
+  ///
   /// nn2.loadWeights('class_model');
-  /// 
+  ///
   /// ```
-  /// 
+  ///
   /// `P.S.`
   /// Method saves only weights and biases of trainable layers (Dense), which means, you can add or remove Normaization layers,
   /// or change activation functions of any layer, and still be able to restore the weights via [loadWeights] method.
@@ -387,26 +419,27 @@ class NeuralNetwork extends Model {
       return _saveTrainableWeightsFromLayersToBin(path);
     }
   }
-  
+
   /// Perform saving of the weights and biases of the trainable layers of [this] NeuralNetwork
   void _saveTrainableWeightsFromLayersToBin(String path) {
     File binSerializationFile = File(path + '/model_weights.bin');
     binSerializationFile.createSync(recursive: true);
     double len = layers.where((element) => element.trainable).length.toDouble();
-    List<double> dimensions = [0x1313, len+1, layers[0].units.toDouble()];
+    List<double> dimensions = [0x1313, len + 1, layers[0].units.toDouble()];
     List<double> weights = [];
     for (Layer layer in layers.where((l) => l.trainable)) {
       dimensions.add(layer.units.toDouble());
       weights.addAll(layer.w!.flattenList());
       weights.addAll(layer.b!.flattenList());
     }
-    binSerializationFile.writeAsBytesSync(Float64List.fromList(dimensions + weights).buffer.asUint8List());
+    binSerializationFile.writeAsBytesSync(
+        Float64List.fromList(dimensions + weights).buffer.asUint8List());
   }
-  
+
   /// Load weights and biases of trainable layers of [this] NeuralNetwork from the `$path/model_weights.bin` file
-  /// 
+  ///
   /// [path] should be a path to the folder, and `not` be full path to the .bin file
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// // first model
@@ -416,9 +449,9 @@ class NeuralNetwork extends Model {
   ///     Normalization(),
   ///     Dense(3, activation: Activation.softmax())
   ///   ], loss: Loos.mse());
-  /// 
+  ///
   /// nn.saveWeights('class_model');
-  /// 
+  ///
   /// // second model with same architecture
   /// final nn2 = NeuralNetwork(10,
   ///   [
@@ -426,9 +459,9 @@ class NeuralNetwork extends Model {
   ///     Normalization(),
   ///     Dense(3, activation: Activation.softmax())
   ///   ], loss: Loos.mse());
-  /// 
+  ///
   /// nn2.loadWeights('class_model');
-  /// 
+  ///
   /// ```
   void loadWeights(String path, [SaveType type = SaveType.bin]) {
     if (type == SaveType.bin) {
@@ -437,9 +470,9 @@ class NeuralNetwork extends Model {
   }
 
   /// Load weights and biases of trainable layers of [this] NeuralNetwork from `buffer`
-  /// 
+  ///
   /// This method specificly created to load [NeuralNetwork] from `Flutter` assets
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// // var model = NeuralNetwork(...)
@@ -456,8 +489,7 @@ class NeuralNetwork extends Model {
     File binSerializationFile = File(path + '/model_weights.bin');
     if (!binSerializationFile.existsSync()) {
       _loadWeightsFromBytes(binSerializationFile.readAsBytesSync().buffer);
-    }
-    else {
+    } else {
       throw Exception("Directory $path don't contains model_weights.bin file");
     }
   }
@@ -475,35 +507,34 @@ class NeuralNetwork extends Model {
         while (!layers[train].trainable) {
           train += 1;
         }
-        layers[train].w = Matrix.reshapeFromList(weightsData.sublist(
-          offset, offset + inDim*outDim
-        ), n: outDim, m: inDim);
-        offset += inDim*outDim;
-        layers[train].b = Matrix.column(weightsData.sublist(offset, offset + outDim));
+        layers[train].w = Matrix.reshapeFromList(
+            weightsData.sublist(offset, offset + inDim * outDim),
+            n: outDim,
+            m: inDim);
+        offset += inDim * outDim;
+        layers[train].b =
+            Matrix.column(weightsData.sublist(offset, offset + outDim));
         offset += outDim;
         inDim = outDim;
-        outDim = weightsData[2+i+1].toInt();
+        outDim = weightsData[2 + i + 1].toInt();
         train += 1;
       }
-    }
-    else {
+    } else {
       throw Exception('Wrong .bin file');
     }
   }
 
   @override
   String toString() {
-    var str = '#'*65 + '\n# $name (loss: $loss, optimizer: $optimizer)\n';
+    var str = '#' * 65 + '\n# $name (loss: $loss, optimizer: $optimizer)\n';
     for (var l in layers) {
-      str += '#' + '-'*50 + '\n';
+      str += '#' + '-' * 50 + '\n';
       str += '# ' + l.toString() + '\n';
     }
-    str += '#'*65;
+    str += '#' * 65;
     return str;
   }
 }
 
 // Supported files types for saving
-enum SaveType {
-  bin
-}
+enum SaveType { bin }

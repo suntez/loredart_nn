@@ -1,6 +1,6 @@
 name: loredart_nn
 description: Simple library for Deep Neural Networks creating and training written in pure Dart 
-version: 0.0.1
+version: 0.0.1+2
 homepage: https://github.com/suntez/loredart_nn
 repository: https://github.com/suntez/loredart_nn
 

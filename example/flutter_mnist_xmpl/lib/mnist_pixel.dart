@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 // ignore: must_be_immutable
 class AnimatedPixel extends StatelessWidget {
   late ValueNotifier<int> scale;
-  AnimatedPixel({required this.scale, Key? key }) : super(key: key);
+  AnimatedPixel({required this.scale, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

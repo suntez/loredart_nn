@@ -7,25 +7,33 @@ import 'matrix.dart';
 abstract class Layer {
   /// Number of rows in output [Matrix.column] after activation (or applying) of the [Layer] over input data
   late int units;
+
   /// The name of the layer
   String? name;
+
   /// Identify if initialization was called
   bool wasInitialized = false;
+
   /// Identify if [this] is trainable
   bool trainable = true;
+
   /// [Matrix] of the `weights` of the [Layer]
   Matrix? w;
+
   /// [Matrix.column] of the `biases` of the [Layer]
   Matrix? b;
+
   /// Defines if train biases or keep them as zero vector
   final bool useBiases;
+
   /// Input data buffer used in the learning proccess
   Matrix? inputDataBuffer;
+
   /// Derivatives of the activation function used in the learning process
   Matrix? activatedDerivativeBuffer;
 
   Layer(this.units, this.name, {this.trainable = true, this.useBiases = true})
-    : assert(units >= 0);
+      : assert(units >= 0);
 
   /// Initialization of [Layer]'s parametrs
   /// should be called before calling ([act()]) the Layer
@@ -62,11 +70,11 @@ class Input extends Layer {
 }
 
 /// Simple fully-connected [Layer]
-/// 
+///
 /// Execute regular logic of dense-connected layer over given input data [inputs]:
-/// 
+///
 /// `activation.function(weights*inputs+biases)`
-/// 
+///
 /// Example:
 /// ```dart
 /// // without NeuralNetwork
@@ -75,7 +83,7 @@ class Input extends Layer {
 /// dense.init(3);
 /// final output = dense.act(inputs);
 /// print(output); // output is matrix 1⨯1
-/// 
+///
 /// // within NeuralNetwork
 /// final nn = NeuralNetwork(10, [
 ///   Dense(32, activation: Activation.swish()),
@@ -90,16 +98,17 @@ class Dense extends Layer {
   int? _prevDim;
 
   Dense(int units, {Activation? activation, String? name, bool? useBiases})
-      : assert(units > 0), super(units, name, useBiases: useBiases ?? true) {
+      : assert(units > 0),
+        super(units, name, useBiases: useBiases ?? true) {
     this.activation = activation ?? Activation.linear();
   }
 
   /// Set initial values to weights and biases
-  /// 
+  ///
   /// [dims] parametr is input vector length
-  /// 
+  ///
   /// For weights [w] is used `Matrix(m, n, seed)` constructor with He-normal initialization
-  /// 
+  ///
   /// For biases [b] is used `Matrix.zeros(n: n, m: 1)` constructor
   @override
   void init([dynamic dims]) {
@@ -110,14 +119,15 @@ class Dense extends Layer {
   }
 
   /// Perform logic of [Dense] layer
-  /// 
+  ///
   /// Return `activation.function(w*inputs+b)`
-  /// 
+  ///
   /// Paramnetr [inputs] is expected to be [Matrix.column]
   @override
   Matrix act(dynamic inputs, {bool train = false}) {
     if (!wasInitialized) {
-      throw Exception('Not initialized Layer.\nCall init() before act() method');
+      throw Exception(
+          'Not initialized Layer.\nCall init() before act() method');
     }
     final data = w! * (inputs as Matrix) + b!;
     if (train) {
@@ -128,21 +138,20 @@ class Dense extends Layer {
   }
 
   @override
-  String toString() => "${name ?? 'dense_layer'} -> Dense($units, activation: $activation)";
+  String toString() =>
+      "${name ?? 'dense_layer'} -> Dense($units, activation: $activation)";
 }
 
 /// Types of normalization
-enum NormalizationType {
-  minMax, zScore
-}
+enum NormalizationType { minMax, zScore }
 
 /// Data normalization [Layer]
-/// 
+///
 /// For now supports two different normalization types:
-/// 
+///
 /// - [NormalizationType.minmax] -> `(data - min)/(max - min)`
 /// - [NormalizationType.zScore] -> `(data-mean)/std`
-/// 
+///
 /// Example:
 /// ```dart
 /// final data = Matrix.column([-2, -1, 0, 1, 2]);
@@ -150,37 +159,38 @@ enum NormalizationType {
 /// final zScore = Normalization(type: NormalizationType.zScore);
 /// minmax.init(5);
 /// zScore.init(5);
-/// 
+///
 /// // min-max normilized
 /// print(minmax.act(data).flattenRow());
 /// // Output: matrix 1⨯5 [[0.0, 0.25, 0.5, 0.75, 1.0]]
-/// 
+///
 /// // z-score normilized
 /// print(zScore.act(data).flattenRow());
 /// //Output: matrix 1⨯5 [[-1.4142135, -0.707106781, 0.0, 0.707106781, 1.4142135]]
 /// ```
 class Normalization extends Layer {
   late NormalizationType type;
-  Normalization({this.type = NormalizationType.minMax, String? name}) : super(0, name, trainable: false);
+  Normalization({this.type = NormalizationType.minMax, String? name})
+      : super(0, name, trainable: false);
 
   /// Min-max normalization od [data]
   Matrix _minmax(Matrix data) {
     final r = range(data);
     if (r[0] == r[1]) {
-      return data..scale(1/r[0]);
-    }
-    else {
+      return data..scale(1 / r[0]);
+    } else {
       return data
-      ..addScalar(-r[0])
-      ..scale(1/(r[1] - r[0]));
+        ..addScalar(-r[0])
+        ..scale(1 / (r[1] - r[0]));
     }
   }
 
   /// zScore normalization of [data]
   Matrix _zScore(Matrix data) {
     final mean = data.reduceMean();
-    final sd = math.sqrt(data.apply((x) => math.pow(x-mean, 2).toDouble()).reduceMean());
-    return data.addedScalar(-data.reduceMean()).scaled(1/sd);
+    final sd = math
+        .sqrt(data.apply((x) => math.pow(x - mean, 2).toDouble()).reduceMean());
+    return data.addedScalar(-data.reduceMean()).scaled(1 / sd);
   }
 
   @override
@@ -192,11 +202,11 @@ class Normalization extends Layer {
   Matrix act(inputs, {bool train = false}) {
     if (type == NormalizationType.zScore) {
       return _zScore(inputs as Matrix);
-    }
-    else {
+    } else {
       return _minmax(inputs as Matrix);
     }
   }
+
   @override
   String toString() => "${name ?? 'norm_layer'} -> Normalization()";
 }

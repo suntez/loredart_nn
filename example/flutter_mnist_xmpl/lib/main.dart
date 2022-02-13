@@ -6,13 +6,10 @@ void main() async {
 }
 
 class MnistClassApp extends StatelessWidget {
-  const MnistClassApp({ Key? key }) : super(key: key);
+  const MnistClassApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: const MainPage(),
-      theme: ThemeData.dark()
-    );
+    return MaterialApp(home: const MainPage(), theme: ThemeData.dark());
   }
 }

@@ -2,10 +2,9 @@ import 'matrix.dart';
 
 /// The class of set of the static methods of different [Matrix] operations
 class MatrixOperation {
-
   /// Return matrix multiplication of [a] and [b]
-  /// 
-  /// Throw an `exception` if dimension's condition not met 
+  ///
+  /// Throw an `exception` if dimension's condition not met
   static Matrix multiplication(Matrix a, Matrix b) {
     if (a.m == b.n) {
       var resultMatrix = Matrix.zero(n: a.n, m: b.m);
@@ -19,14 +18,13 @@ class MatrixOperation {
         }
       }
       return resultMatrix;
-    }
-    else {
+    } else {
       throw Exception('Dimensions error: A.m != B.n');
     }
   }
 
   /// Return Hadamard product of [a] and [b],
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final a = Matrix.fromLists([[1,2], [2,1]]); // [[1, 2]
@@ -46,20 +44,19 @@ class MatrixOperation {
     if (a.n == b.n && a.m == b.m) {
       var resultMatrix = Matrix.zero(n: a.n, m: b.m);
       for (int i = 0; i < resultMatrix.n; i += 1) {
-        for (int j = 0; j <  resultMatrix.m; j += 1) {
+        for (int j = 0; j < resultMatrix.m; j += 1) {
           resultMatrix[i][j] = a[i][j] * b[i][j];
         }
       }
       return resultMatrix;
-    }
-    else {
+    } else {
       throw Exception('Dimensions error: dim(A) != dim(B)');
     }
   }
 
   /// Return [Matrix] created as binded [a] and [b] by columns.
   /// Elements of [a] set first, and elements of [b] second
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final a = Matrix.column([0,0,0]);
@@ -71,27 +68,26 @@ class MatrixOperation {
   /// // [[0.0, 1.0]
   /// // [0.0, 1.0]
   /// // [0.0, 1.0]]
-  /// ``` 
-  /// 
+  /// ```
+  ///
   /// Throw an `exception` if dimension's condition not met
   static Matrix columnBind(Matrix a, Matrix b) {
     if (a.n == b.n) {
-      var resultMatrix = Matrix.zero(n: a.n, m:a.m + b.m);
+      var resultMatrix = Matrix.zero(n: a.n, m: a.m + b.m);
       for (int i = 0; i < resultMatrix.n; i += 1) {
-        for (int j = 0; j <  resultMatrix.m; j += 1) {
-          resultMatrix[i][j] = j < a.m ? a[i][j] : b[i][j-a.m];
+        for (int j = 0; j < resultMatrix.m; j += 1) {
+          resultMatrix[i][j] = j < a.m ? a[i][j] : b[i][j - a.m];
         }
       }
       return resultMatrix;
-    }
-    else {
+    } else {
       throw Exception('Dimensions error: A.n != B.n');
     }
   }
 
   /// Return [Matrix] created as binded [a] and [b] by rows.
   /// Elements of [a] set first, and elements of [b] second
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final a = Matrix.row([0,0,0]);
@@ -107,60 +103,57 @@ class MatrixOperation {
   /// Throw an `exception` if dimension's condition not met
   static Matrix rowBind(Matrix a, Matrix b) {
     if (a.m == b.m) {
-      var resultMatrix = Matrix.zero(n: a.n + b.n, m:a.m);
+      var resultMatrix = Matrix.zero(n: a.n + b.n, m: a.m);
       for (int i = 0; i < resultMatrix.n; i += 1) {
-        for (int j = 0; j <  resultMatrix.m; j += 1) {
-          resultMatrix[i][j] = i < a.n ? a[i][j] : b[i-a.n][j];
+        for (int j = 0; j < resultMatrix.m; j += 1) {
+          resultMatrix[i][j] = i < a.n ? a[i][j] : b[i - a.n][j];
         }
       }
       return resultMatrix;
-    }
-    else {
+    } else {
       throw Exception('Dimensions error: A.n != B.n');
     }
   }
 
   /// Return elementwise addition of [a] and [b]
-  /// 
+  ///
   /// Throw an `exception` if dimension's condition not met
   static Matrix addition(Matrix a, Matrix b) {
     if (a.n == b.n && a.m == b.m) {
       var resultMatrix = Matrix.zero(n: a.n, m: b.m);
       for (int i = 0; i < resultMatrix.n; i += 1) {
-        for (int j = 0; j <  resultMatrix.m; j += 1) {
+        for (int j = 0; j < resultMatrix.m; j += 1) {
           resultMatrix[i][j] = a[i][j] + b[i][j];
         }
       }
       return resultMatrix;
-    }
-    else {
+    } else {
       throw Exception('Dimensions error: A.shape != B.shape');
     }
   }
 
   /// Return elementwise subtraction of [a] and [b]
-  /// 
+  ///
   /// Throw an `exception` if dimension's condition not met
   static Matrix subtraction(Matrix a, Matrix b) {
     if (a.n == b.n && a.m == b.m) {
       var resultMatrix = Matrix.zero(n: a.n, m: b.m);
       for (int i = 0; i < resultMatrix.n; i += 1) {
-        for (int j = 0; j <  resultMatrix.m; j += 1) {
+        for (int j = 0; j < resultMatrix.m; j += 1) {
           resultMatrix[i][j] = a[i][j] - b[i][j];
         }
       }
       return resultMatrix;
-    }
-    else {
+    } else {
       throw Exception('Dimensions error: A.shape != B.shape');
     }
   }
 
-  /// Return transpose of [matrix] 
+  /// Return transpose of [matrix]
   static Matrix transposition(Matrix matrix) {
     var resultMatrix = Matrix.zero(n: matrix.m, m: matrix.n);
     for (int i = 0; i < resultMatrix.n; i += 1) {
-      for (int j = 0; j <  resultMatrix.m; j += 1) {
+      for (int j = 0; j < resultMatrix.m; j += 1) {
         resultMatrix[i][j] = matrix[j][i];
       }
     }
@@ -171,7 +164,7 @@ class MatrixOperation {
   static Matrix scalarMultiplication(Matrix matrix, double scalar) {
     var resultMatrix = Matrix.zero(n: matrix.n, m: matrix.m);
     for (int i = 0; i < resultMatrix.n; i += 1) {
-      for (int j = 0; j <  resultMatrix.m; j += 1) {
+      for (int j = 0; j < resultMatrix.m; j += 1) {
         resultMatrix[i][j] = matrix[i][j] * scalar;
       }
     }
@@ -182,7 +175,7 @@ class MatrixOperation {
   static Matrix scalarAddition(Matrix matrix, double scalar) {
     var resultMatrix = Matrix.zero(n: matrix.n, m: matrix.m);
     for (int i = 0; i < resultMatrix.n; i += 1) {
-      for (int j = 0; j <  resultMatrix.m; j += 1) {
+      for (int j = 0; j < resultMatrix.m; j += 1) {
         resultMatrix[i][j] = matrix[i][j] + scalar;
       }
     }
