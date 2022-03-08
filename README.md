@@ -1,6 +1,6 @@
 <div align="right">
 
-**рускій воєний корабль - іди нах#й**
+**рускій воєнyий корабль, іди нах#й**
 <img src="assets/GloryForUkraineMini.svg" width="25">
 
 <div align="left">
