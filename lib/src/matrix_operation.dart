@@ -19,7 +19,7 @@ class MatrixOperation {
       }
       return resultMatrix;
     } else {
-      throw Exception('Dimensions error: A.m != B.n');
+      throw Exception('Dimensions error: A.m != B.n  |${a.m}) != ${b.n}|');
     }
   }
 
@@ -50,7 +50,7 @@ class MatrixOperation {
       }
       return resultMatrix;
     } else {
-      throw Exception('Dimensions error: dim(A) != dim(B)');
+      throw Exception('Dimensions error: dim(A) != dim(B)  |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
     }
   }
 
@@ -70,7 +70,7 @@ class MatrixOperation {
   /// // [0.0, 1.0]]
   /// ```
   ///
-  /// Throw an `exception` if dimension's condition not met
+  /// Throw an `exception` if dimensions condition is not met
   static Matrix columnBind(Matrix a, Matrix b) {
     if (a.n == b.n) {
       var resultMatrix = Matrix.zero(n: a.n, m: a.m + b.m);
@@ -128,7 +128,7 @@ class MatrixOperation {
       }
       return resultMatrix;
     } else {
-      throw Exception('Dimensions error: A.shape != B.shape');
+      throw Exception('Dimensions error: A.shape != B.shape  |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
     }
   }
 
@@ -145,7 +145,7 @@ class MatrixOperation {
       }
       return resultMatrix;
     } else {
-      throw Exception('Dimensions error: A.shape != B.shape');
+      throw Exception('Dimensions error: A.shape != B.shape |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
     }
   }
 
@@ -191,5 +191,37 @@ class MatrixOperation {
       }
     }
     return resultMatrix;
+  }
+
+  /// Return copy of [matrix] where each column where added by [column]
+  static Matrix addVectorToEachColumn(Matrix matrix, Matrix column) {
+    if (column.m == 1 && matrix.n == column.n) {
+      Matrix resultMatrix = Matrix.zero(n: matrix.n, m: matrix.m);
+      for (int i = 0; i < resultMatrix.n; i += 1) {
+        for (int j = 0; j < resultMatrix.m; j += 1) {
+          resultMatrix[i][j] = matrix[i][j] + column[i][0];
+        }
+      }
+      return resultMatrix;
+    }
+    else {
+      throw Exception('Dimensions error: A.shape != B.shape');
+    }
+  }
+
+  /// Return copy of [matrix] where each column where multiplied by [column] with Hadamard product 
+  static Matrix hadamardProductToEachColumn(Matrix matrix, Matrix column) {
+    if (column.m == 1 && matrix.n == column.n) {
+      Matrix resultMatrix = Matrix.zero(n: matrix.n, m: matrix.m);
+      for (int i = 0; i < resultMatrix.n; i += 1) {
+        for (int j = 0; j < resultMatrix.m; j += 1) {
+          resultMatrix[i][j] = matrix[i][j] * column[i][0];
+        }
+      }
+      return resultMatrix;
+    }
+    else {
+      throw Exception('Dimensions error: A.shape != B.shape');
+    }
   }
 }

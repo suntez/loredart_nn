@@ -1,7 +1,7 @@
 import 'dart:math' as math;
-import 'activation.dart';
+import 'package:loredart_nn/loredart_nn.dart';
+
 import 'math_utils.dart';
-import 'matrix.dart';
 
 /// Base super-class for any layer of [NeuralNetwork]
 abstract class Layer {
@@ -30,7 +30,7 @@ abstract class Layer {
   Matrix? inputDataBuffer;
 
   /// Derivatives of the activation function used in the learning process
-  Matrix? activatedDerivativeBuffer;
+  List<Matrix>? activatedDerivativeBuffer;
 
   Layer(this.units, this.name, {this.trainable = true, this.useBiases = true})
       : assert(units >= 0);
@@ -60,7 +60,7 @@ class Input extends Layer {
 
   @override
   Matrix act(dynamic inputs, {bool train = false}) {
-    return Matrix.column(inputs);
+    return Matrix.fromLists(inputs).T;
   }
 
   @override
@@ -122,14 +122,14 @@ class Dense extends Layer {
   ///
   /// Return `activation.function(w*inputs+b)`
   ///
-  /// Paramnetr [inputs] is expected to be [Matrix.column]
+  /// Parameter [inputs] is expected to have dims [(batchSize, prevNumberOfUnits)]
   @override
   Matrix act(dynamic inputs, {bool train = false}) {
     if (!wasInitialized) {
       throw Exception(
-          'Not initialized Layer.\nCall init() before act() method');
+        'Not initialized Layer.\nCall init() before act()');
     }
-    final data = w! * (inputs as Matrix) + b!;
+    final data = MatrixOperation.addVectorToEachColumn(w! * (inputs as Matrix), b!);
     if (train) {
       inputDataBuffer = inputs;
       activatedDerivativeBuffer = activation.dfunction(data);
@@ -145,52 +145,112 @@ class Dense extends Layer {
 /// Types of normalization
 enum NormalizationType { minMax, zScore }
 
-/// Data normalization [Layer]
+/// Data normalization [Layer].
+/// Normalize each record in batch independently.
+/// 
+/// Can be seen as column-wise normalization.
 ///
 /// For now supports two different normalization types:
 ///
 /// - [NormalizationType.minmax] -> `(data - min)/(max - min)`
 /// - [NormalizationType.zScore] -> `(data-mean)/std`
 ///
+/// [Layer] acts similar in [fit], [evaluate] and [predict] modes
+///
 /// Example:
 /// ```dart
 /// final data = Matrix.column([-2, -1, 0, 1, 2]);
-/// final minmax = Normalization(type: NormalizationType.minMax);
-/// final zScore = Normalization(type: NormalizationType.zScore);
+/// final minmax = LayerNormalization(type: NormalizationType.minMax);
+/// final zScore = LayerNormalization(type: NormalizationType.zScore);
 /// minmax.init(5);
 /// zScore.init(5);
 ///
 /// // min-max normilized
-/// print(minmax.act(data).flattenRow());
+/// print(minmax.act(data).flattenRow()); // transpose result
 /// // Output: matrix 1⨯5 [[0.0, 0.25, 0.5, 0.75, 1.0]]
 ///
 /// // z-score normilized
-/// print(zScore.act(data).flattenRow());
+/// print(zScore.act(data).flattenRow()); // transpose result
 /// //Output: matrix 1⨯5 [[-1.4142135, -0.707106781, 0.0, 0.707106781, 1.4142135]]
 /// ```
-class Normalization extends Layer {
+/// 
+/// For `batchSize` > 1 in NeuralNetwork these [Layer] applies normalization logic for each column of bacth matrix
+/// 
+/// Example:
+/// ```dart
+/// final batch = Matrix.fromLists(
+///     [[-4, -1, 0, 2, 3], // first data record
+///      [-4, -2, 1, 2, 3]] // second data record
+///   ).T; // transpose so records are represented as columns
+/// 
+///   print(batch);
+///   // Output:
+///   // matrix 5⨯2
+///   // [[-4.0, -4.0]
+///   // [-1.0, -2.0]
+///   // [0.0, 1.0]
+///   // [2.0, 2.0]
+///   // [3.0, 3.0]]
+///
+/// 
+///   final minmax = LayerNormalization(type: NormalizationType.minMax);
+///   minmax.init(5);
+/// 
+///   var result = minmax.act(batch);
+///   print(result);
+///   // Output:
+///   // matrix 5⨯2
+///   // [[0.0, 0.0]
+///   // [0.42857142857142855, 0.2857142857142857]
+///   // [0.5714285714285714, 0.7142857142857142]
+///   // [0.8571428571428571, 0.8571428571428571]
+///   // [1.0, 1.0]]
+/// ```
+class LayerNormalization extends Layer {
   late NormalizationType type;
-  Normalization({this.type = NormalizationType.minMax, String? name})
+  LayerNormalization({this.type = NormalizationType.minMax, String? name})
       : super(0, name, trainable: false);
 
   /// Min-max normalization od [data]
   Matrix _minmax(Matrix data) {
-    final r = range(data);
-    if (r[0] == r[1]) {
-      return data..scale(1 / r[0]);
-    } else {
-      return data
-        ..addScalar(-r[0])
-        ..scale(1 / (r[1] - r[0]));
+    Matrix result = Matrix.zero(n: 0, m: 0);
+    for (int i = 0; i < data.m; i += 1) {
+      Matrix tempColumn = data.getColumn(i);
+      final r = range(tempColumn);
+      if (r[0] == r[1]) {
+        tempColumn.scale(1 / r[0]);
+      }
+      else {
+        tempColumn
+          ..addScalar(-r[0])
+          ..scale(1 / (r[1] - r[0]));
+      }
+      if (i == 0) {
+        result = tempColumn;
+      }
+      else {
+        result = MatrixOperation.columnBind(result, tempColumn);
+      }
     }
+    return result;
   }
 
   /// zScore normalization of [data]
   Matrix _zScore(Matrix data) {
-    final mean = data.reduceMean();
-    final sd = math
-        .sqrt(data.apply((x) => math.pow(x - mean, 2).toDouble()).reduceMean());
-    return data.addedScalar(-data.reduceMean()).scaled(1 / sd);
+    final mean = data.reduceMeanByAxis(1);
+    // return data.addedScalar(-data.reduceMean()).scaled(1 / sd);
+    Matrix result = Matrix.zero(n: 0, m: 0);
+    for (int i = 0; i < data.m; i += 1) {
+      Matrix tempColumn = data.getColumn(i);
+      final sd = math.sqrt(tempColumn.apply((x) => math.pow(x - mean[0][i], 2).toDouble()).reduceMean());
+      if (i == 0) {
+        result = tempColumn.addedScalar(-mean[0][i]).scaled(sd);
+      }
+      else {
+        result = MatrixOperation.columnBind(result, tempColumn.addedScalar(-mean[0][i]).scaled(sd));
+      }
+    }
+    return result;
   }
 
   @override

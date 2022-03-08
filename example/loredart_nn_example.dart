@@ -6,14 +6,14 @@ import 'package:loredart_nn/loredart_nn.dart';
 
 void main() {
   List<List<List<double>>> data = createTrainData(CsvToListConverter()
-          .convert(
-            File('.csv' //name of the .csv file with data
-                    )
-                .readAsStringSync(),
-            shouldParseNumbers: false,
-          )
-          .sublist(1) // first line of .csv file is column names
-      );
+    .convert(
+      File('example/.csv' //name of the .csv file with data
+              )
+          .readAsStringSync(),
+      shouldParseNumbers: false,
+    )
+    .sublist(1) // first line of .csv file is column names
+  );
 
   /// spliting data into train and test lists
   List<List<double>> xTrain = data[0].sublist(0, 30000);
@@ -24,46 +24,52 @@ void main() {
 
   /// [NeuralNetwork] with 2 hidden layers, MSE loss
   NeuralNetwork mnistDNN = NeuralNetwork(
-      784,
-      [
-        Dense(128, activation: Activation.relu()),
-        Normalization(),
-        Dense(64, activation: Activation.relu()),
-        Dense(10, activation: Activation.linear())
-      ],
-      loss: Loss.mse(),
-      optimizer: SGD(learningRate: 0.05, momentum: 0.8),
-      useAccuracyMetric: true);
+    784,
+    [
+      Dense(128, activation: Activation.relu()),
+      LayerNormalization(),
+      Dense(64, activation: Activation.relu()),
+      Dense(10, activation: Activation.linear())
+    ],
+    loss: Loss.mse(),
+    optimizer: SGD(learningRate: 0.05, momentum: 0.8),
+    useAccuracyMetric: true
+  );
 
-  mnistDNN.fit(xTrain, yTrain, epochs: 1, verbose: true);
-  // epoch 1/1 |100.00%| -> mean secs per train step: 0.00863s, mean loss [mse]: 0.016393, accuracy: 91.57%
-
-  var hist = mnistDNN.evaluate(xTest, yTest, verbose: true);
-  // evaluating 12000/12000 |100.00%| -> mean secs per test step: 0.00050s, mean loss [mse]: 0.011336, accuracy: 94.72%
-
-  print(hist); // {mean mse: 0.011336099126190758, accuracy: 0.9471666666666667}
+  var history = mnistDNN.fit(xTrain, yTrain, epochs: 3, batchSize: 128, verbose: true);
+  print(history);
+  
+  var metrics = mnistDNN.evaluate(xTest, yTest, batchSize: 120, verbose: true);
+  print(metrics);
 
   /// [NeuralNetwork] with 1 hidden layer and crossEntropy
   NeuralNetwork ceMnistDNN = NeuralNetwork(
-      784,
-      [
-        Dense(64, activation: Activation.softplus()), //or leakyReLU or elu
-        Normalization(),
-        Dense(10, activation: Activation.softmax())
-      ],
-      loss: Loss
-          .crossEntropy(), // sparseCrossEntropy can be used for sparse data with the same result
-      optimizer: SGD(learningRate: 0.01, momentum: 0.9),
-      useAccuracyMetric: true);
+    784, // length of one input record = 784 pixels
+    [
+      Dense(128, activation: Activation.softplus()), //or leakyReLU or elu
+      LayerNormalization(),
+      Dense(10, activation: Activation.softmax())
+    ],
+    loss: Loss.crossEntropy(), // sparseCrossEntropy can be used for sparse data
+    optimizer: SGD(learningRate: 0.01, momentum: 0.9),
+    useAccuracyMetric: true
+  );
 
-  ceMnistDNN.fit(xTrain, yTrain, epochs: 1, verbose: true);
-  // epoch 1/1 |100.00%| -> mean secs per train step: 0.00347s, mean loss [cross_entropy]: 0.332344, accuracy: 90.12%
+  var history2 = ceMnistDNN.fit(xTrain, yTrain, epochs: 4, batchSize: 256, verbose: true);
+  // epoch 1/4 |118/118| -> mean time per batch: 388.01ms, mean loss [cross_entropy]: 1.478636, mean accuracy: 68.05%
+  // epoch 2/4 |118/118| -> mean time per batch: 400.87ms, mean loss [cross_entropy]: 0.868227, mean accuracy: 83.50%
+  // epoch 3/4 |118/118| -> mean time per batch: 390.92ms, mean loss [cross_entropy]: 0.691678, mean accuracy: 85.72%
+  // epoch 4/4 |118/118| -> mean time per batch: 386.92ms, mean loss [cross_entropy]: 0.606761, mean accuracy: 86.84%
 
-  var hist2 = ceMnistDNN.evaluate(xTest, yTest, verbose: true);
-  // evaluating 12000/12000 |100.00%| -> mean secs per test step: 0.00025s, mean loss [cross_entropy]: 0.237819, accuracy: 92.78%
+  print(history2);
+  // {cross_entropy: [1.4786360357701471, 0.868226552200313, 0.6916779963409534, 0.6067611970768912],
+  //  accuracy: [68.04819915254238, 83.49995586158192, 85.72342867231639, 86.83902718926552]}
 
-  print(
-      hist2); // {mean cross_entropy: 0.23781868465052503, accuracy: 0.9278333333333333}
+  var metrics2 = ceMnistDNN.evaluate(xTest, yTest, batchSize: 120, verbose: true);
+  // evaluating batch 100/100 -> mean time per batch: 68.52ms, mean loss [cross_entropy]: 0.574255, mean accuracy: 87.19%
+
+  print(metrics2);
+  // {mean cross_entropy: 0.5742549607727949, mean accuracy: 0.8719166666666667}
 }
 
 /// Split data into features (or pixels) `x` and target digits (or classes) `y`, which are One-Hot encoded

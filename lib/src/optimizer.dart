@@ -11,22 +11,22 @@ abstract class Optimizer {
   Optimizer({required this.learningRate})
       : assert(learningRate < 1 && learningRate > 0);
 
-  /// apply [gradients] to the [layers] through [Optimizer]'s logic
+  /// apply [gradients] to the [layers] with [Optimizer]'s logic
   void applyGradients(List<List<Matrix>> gradients, List<Layer> layers,
       [dynamic parametr]);
 }
 
-/// Stochatic Gradient Descent optimizer with momentum parameter
+/// Stochastic Gradient Descent optimizer with momentum parameter
 ///
 /// Gradients applying depends on momentum value:
 /// - momentum = 0 then:
 /// ```
 /// layer.w = layer.w - gradients.scaled(learningRate)
 /// ```
-/// - momentum != 0 then:
+/// - momentum > 0 then:
 /// ```
-/// prev = prev.scaled(momentum) - gradients.scaled(learningRate);
-/// layer.w = layer.w - prev;
+/// velocity = velocity.scaled(momentum) - gradients.scaled(learningRate);
+/// layer.w = layer.w + velocity;
 /// ```
 class SGD extends Optimizer {
   late double momentum;
@@ -44,7 +44,8 @@ class SGD extends Optimizer {
         }
         layers[i].w = layers[i].w! - gradients[i][1].scaled(learningRate);
       }
-    } else if (_previuosDelta == null) {
+    }
+    else if (_previuosDelta == null) {
       _previuosDelta =
           List<Matrix>.filled(gradients.length, Matrix.zero(n: 0, m: 0));
       for (int i = 0; i < layers.length; i += 1) {
@@ -54,7 +55,8 @@ class SGD extends Optimizer {
         _previuosDelta![i] = gradients[i][1]..scale(learningRate);
         layers[i].w = layers[i].w! - gradients[i][1];
       }
-    } else {
+    }
+    else {
       for (int i = 0; i < layers.length; i += 1) {
         if (layers[i].useBiases) {
           layers[i].b = layers[i].b! - gradients[i][0].scaled(biasLearningRate);

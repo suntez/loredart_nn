@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:loredart_nn/loredart_nn.dart';
+
 import 'math_utils.dart';
-import 'matrix.dart';
 
 /// Activation function class
 ///
@@ -20,7 +21,7 @@ class Activation {
   late final Matrix Function(Matrix, [dynamic param]) function;
 
   /// The derivative of activation function
-  late final Matrix Function(Matrix, [dynamic param]) dfunction;
+  late final List<Matrix> Function(Matrix, [dynamic param]) dfunction;
 
   /// The name of the activation function
   late final String name;
@@ -41,7 +42,7 @@ class Activation {
         m.apply((double x) => 1 / (1 + math.exp(-x)));
     dfunction = (Matrix m, [dynamic param]) {
       final sigmMatrix = function(m);
-      return sigmMatrix % (-sigmMatrix.addedScalar(-1));
+      return [sigmMatrix % (-sigmMatrix.addedScalar(-1))];
     };
     name = 'sigmoid';
   }
@@ -64,9 +65,9 @@ class Activation {
         m.apply((double x) => x / (1 + math.exp(-x)));
     dfunction = (Matrix m, [dynamic param]) {
       final swishMatrix = function(m);
-      return swishMatrix +
+      return [swishMatrix +
           (m.apply((double x) => 1 / (1 + math.exp(-x))) %
-              (-swishMatrix.addedScalar(-1)));
+              (-swishMatrix.addedScalar(-1)))];
     };
     name = 'swish';
   }
@@ -88,7 +89,7 @@ class Activation {
     function = (Matrix m, [dynamic param]) =>
         m.apply((double x) => math.log(math.exp(x) + 1));
     dfunction = (Matrix m, [dynamic param]) =>
-        m.apply((double x) => 1 / (1 + math.exp(-x)));
+        [m.apply((double x) => 1 / (1 + math.exp(-x)))];
     name = 'softplus';
   }
 
@@ -106,7 +107,7 @@ class Activation {
   Activation.tanh() {
     function = (Matrix m, [dynamic param]) => m.apply((double x) => tanh(x));
     dfunction = (Matrix m, [dynamic param]) =>
-        m.apply((double x) => 1 / math.pow(cosh(x), 2));
+        [m.apply((double x) => 1 / math.pow(cosh(x), 2))];
     name = 'tanh';
   }
 
@@ -127,17 +128,27 @@ class Activation {
   /// ```
   Activation.softmax() {
     function = (Matrix m, [dynamic param]) {
-      final exps = m.addedScalar(-max(m)).apply(math.exp);
-      return exps.scaled(
-          1 / exps.flattenList().reduce((value, element) => value + element));
-    };
-    dfunction = (Matrix m, [dynamic jacobiMatrix = true]) {
-      final softMatrix = function(m);
-      if (jacobiMatrix as bool) {
-        return Matrix.diag(diag: softMatrix.flattenList()) -
-            softMatrix * softMatrix.T;
+      Matrix resultMatrix = Matrix.zero(n: 0, m: 0);
+      for (int i = 0; i < m.m; i += 1) {
+        Matrix exps = m.getColumn(i);
+        exps = exps.addedScalar(max(exps)).apply(math.exp);
+        if (i == 0) {
+          resultMatrix = exps.scaled(1/exps.flattenList().reduce((value, element) => value + element));
+        }
+        else {
+          resultMatrix = MatrixOperation.columnBind(resultMatrix, exps.scaled(1/exps.flattenList().reduce((value, element) => value + element)));
+        }
       }
-      return function(softMatrix) % (-softMatrix.addedScalar(-1));
+      return resultMatrix;
+    };
+    dfunction = (Matrix m, [dynamic param]) {
+      final softMatrix = function(m);
+      // Jacobian for each (mini)batch sample
+      return List<Matrix>.generate(
+        m.m,
+        (index) => Matrix.diag(diag: softMatrix.getColumn(index).flattenList())
+        - softMatrix.getColumn(index) * softMatrix.getColumn(index).T
+      );
     };
     name = 'softmax';
   }
@@ -156,7 +167,7 @@ class Activation {
   Activation.linear() {
     function = (Matrix m, [dynamic param]) => m.apply((double x) => x);
     dfunction = (Matrix m, [dynamic param]) =>
-        Matrix.zero(n: m.n, m: m.m).addedScalar(1);
+        [Matrix.zero(n: m.n, m: m.m).addedScalar(1)];
     name = 'linear';
   }
 
@@ -175,7 +186,7 @@ class Activation {
     function =
         (Matrix m, [dynamic param]) => m.apply((double x) => math.max(x, 0));
     dfunction =
-        (Matrix m, [dynamic param]) => m.apply((double x) => x > 0 ? 1 : 0);
+        (Matrix m, [dynamic param]) => [m.apply((double x) => x > 0 ? 1 : 0)];
     name = 'relu';
   }
 
@@ -196,7 +207,7 @@ class Activation {
     function = (Matrix m, [dynamic alpha = 0.1]) =>
         m.apply((double x) => x > 0 ? x : x * (alpha as double));
     dfunction = (Matrix m, [dynamic alpha = 0.1]) =>
-        m.apply((double x) => x > 0 ? 1 : (alpha as double));
+        [m.apply((double x) => x > 0 ? 1 : (alpha as double))];
     name = 'leaky_relu';
   }
 
@@ -217,7 +228,7 @@ class Activation {
     function = (Matrix m, [dynamic alpha = 0.1]) => m
         .apply((double x) => x > 0 ? x : (alpha as double) * (math.exp(x) - 1));
     dfunction = (Matrix m, [dynamic alpha = 0.1]) =>
-        m.apply((double x) => x > 0 ? 1 : (alpha as double) * math.exp(x));
+        [m.apply((double x) => x > 0 ? 1 : (alpha as double) * math.exp(x))];
     name = 'elu';
   }
 

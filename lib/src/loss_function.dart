@@ -4,104 +4,101 @@ import 'matrix.dart';
 
 /// Loss function class
 ///
+/// Compute mean error of a (mini)batch
+///
 /// ### Loss functions constructors
 /// ```dart
-/// Loss.mae() /// `Mean Absolute Error` loss
-/// Loss.mse() /// `Mean Square Error` loss
-/// Loss.crossEntropy() /// `Cross Entropy` loss
-/// Loss.sparseCrossEntropy() /// `Sparse Cross Entropy` loss
+/// Loss.mae() /// `Mean Absolute Error`
+/// Loss.mse() /// `Mean Square Error`
+/// Loss.crossEntropy() /// `Cross Entropy`
+/// Loss.sparseCrossEntropy() /// `Sparse Cross Entropy`
 /// ```
 class Loss {
   /// The loss function
-  late double Function(Matrix, Matrix, [dynamic parametr]) function;
+  late double Function(Matrix, Matrix, [dynamic parameter]) function;
 
   /// The derivative of loss function
-  late Matrix Function(Matrix, Matrix, [dynamic parametr]) dfunction;
+  late Matrix Function(Matrix, Matrix, [dynamic parameter]) dfunction;
 
   /// The name of the loss function
   late String name;
 
-  /// Mean Square Error loss function
+  /// Mean Square Error loss function for batch
   ///
   /// mse(y, yP) = `1/n * sum (y - yP)^2`
   /// Example:
   /// ```dart
-  /// final y = Matrix.row([0, 1, 0]);
-  /// final yP = Matrix.row([0.1, 0.1, 0.8]);
+  /// final y = Matrix.column([0, 1, 0]);
+  /// final yP = Matrix.column([0.1, 0.1, 0.8]);
   ///
   /// final mse = Loss.mse();
   /// double loss = mse.function(y, yP);
   /// print(loss); // output: 0.48666666666666675
   /// ```
   Loss.mse() {
-    function = (Matrix y, Matrix yP, [dynamic parametr]) {
+    function = (Matrix y, Matrix yP, [dynamic parameter]) {
       return (y - yP)
               .apply((double x) => math.pow(x, 2).toDouble())
               .reduceSum() /
           y.n /
           y.m;
     };
-    dfunction = (Matrix y, Matrix yP, [dynamic parametr]) {
-      return (yP - y).scaled(2 / y.n / y.m);
+    dfunction = (Matrix y, Matrix yP, [dynamic parameter]) {
+      return (yP - y).scaled(2 / y.n);
     };
     name = 'mse';
   }
 
-  /// Mean Absolute Error loss function
+  /// Mean Absolute Error loss function for batch
   ///
   /// mse(y, yP) = `1/n * sum |y - yP|`
   /// Example:
   /// ```dart
-  /// final y = Matrix.row([0, 1, 0]);
-  /// final yP = Matrix.row([0.1, 0.1, 0.8]);
+  /// final y = Matrix.column([0, 1, 0]);
+  /// final yP = Matrix.column([0.1, 0.1, 0.8]);
   ///
   /// final mae = Loss.mae();
   /// double loss = mae.function(y, yP);
   /// print(loss); // output: 0.6
   /// ```
   Loss.mae() {
-    function = (Matrix y, Matrix yP, [dynamic parametr]) {
+    function = (Matrix y, Matrix yP, [dynamic parameter]) {
       return (y - yP).apply((double x) => x.abs()).reduceSum() / y.n / y.m;
     };
-    dfunction = (Matrix y, Matrix yP, [dynamic parametr]) {
-      return (yP - y).apply((double x) => x > 0 ? 1 : -1).scaled(y.n / y.m);
+    dfunction = (Matrix y, Matrix yP, [dynamic parameter]) {
+      return (yP - y).apply((double x) => x > 0 ? 1 : -1).scaled(1 / y.n);
     };
     name = 'mae';
   }
 
-  /// Cross Entropy loss function
+  /// Cross Entropy loss function for batch
   ///
-  /// crossEntropy(y, yP) = `-sum y*ln(yP)` for y being `One-Hot endoded`
+  /// crossEntropy(y, yP) = `-sum y*ln(yP)` for y being `One-Hot encoded`
   ///
   /// Example:
   /// ```dart
-  /// final y = Matrix.row([0, 1, 0]);
-  /// final yP = Matrix.row([0.1, 0.1, 0.8]);
+  /// final y = Matrix.column([0, 1, 0]);
+  /// final yP = Matrix.column([0.1, 0.1, 0.8]);
   ///
   /// final crossEntropy = Loss.crossEntropy();
   /// double loss = crossEntropy.function(y, yP);
   /// print(loss); // output: 2.3025850929940455
   /// ```
   Loss.crossEntropy() {
-    function = (Matrix y, Matrix yP, [dynamic parametr]) {
-      return -(y % yP.apply((x) => x != 0 ? math.log(x) : math.log(x + 1e-5)))
-          .reduceSum();
+    function = (Matrix y, Matrix yP, [dynamic parameter]) {
+      return -(y % yP.apply((x) => x != 0 ? math.log(x) : math.log(x + 1e-4)))
+          .reduceSum() / y.m;
     };
     dfunction = (Matrix y, Matrix yP, [dynamic fromSoftmax = false]) {
-      if (y.reduceSum() == 1) {
-        if ((fromSoftmax as bool)) {
-          return yP - y;
-        }
-        return -y % (yP.apply((x) => x != 0 ? 1 / x : 1 / 1e-5));
-      } else {
-        throw Exception(
-            'y must be One-Hot Encoded and sum(yPredicted) must be equal 1');
+      if ((fromSoftmax as bool)) {
+        return yP - y;
       }
+      return -y % (yP.apply((x) => x != 0 ? 1 / x : 1e4));
     };
     name = 'cross_entropy';
   }
 
-  /// Sparse Cross Entropy loss function
+  /// Sparse Cross Entropy loss function for batch
   ///
   /// sparceCrossEntropy(y, yP) = `-sum y*ln(yP)` for y being `labeled`
   ///
@@ -115,37 +112,36 @@ class Loss {
   /// print(loss); // output: 2.3025850929940455
   /// ```
   Loss.sparseCrossEntropy() {
-    function = (Matrix y, Matrix yP, [dynamic parametr]) {
-      if (yP.n == 1 || yP.m == 1) {
-        Matrix categorical = Matrix.zero(n: yP.n, m: yP.m);
-        if (categorical.m == 1) {
-          categorical[y[0][0].toInt()][0] = 1;
-          //print('cater $categorical');
-        } else {
-          categorical[0][y[0][0].toInt()] = 1;
+    function = (Matrix y, Matrix yP, [dynamic parameter]) {
+      Matrix categorical = Matrix.zero(n: yP.n, m: yP.m);
+      if (y.m == 1) {
+        for (int i = 0; i < y.n; i += 1) {
+          categorical[y[i][0].toInt()][i] = 1;
         }
-        return -(categorical %
-                yP.apply((x) => x != 0 ? math.log(x) : math.log(x + 1e-5)))
-            .reduceSum();
       } else {
-        throw Exception('yPredicted must be a vector');
+        for (int i = 0; i < y.m; i += 1) {
+          categorical[y[0][i].toInt()][i] = 1;
+        }
       }
+      return -(categorical %
+              yP.apply((x) => x != 0 ? math.log(x) : math.log(x + 1e-4)))
+          .reduceSum() / y.m;
     };
     dfunction = (Matrix y, Matrix yP, [dynamic fromSoftmax = false]) {
-      if (yP.n == 1 || yP.m == 1) {
-        Matrix categorical = Matrix.zero(n: yP.n, m: yP.m);
-        if (categorical.m == 1) {
-          categorical[y[0][0].toInt()][0] = 1;
-        } else {
-          categorical[0][y[0][0].toInt()] = 1;
+      Matrix categorical = Matrix.zero(n: yP.n, m: yP.m);
+      if (y.m == 1) {
+        for (int i = 0; i < y.n; i += 1) {
+          categorical[y[i][0].toInt()][i] = 1;
         }
-        if ((fromSoftmax as bool)) {
-          return yP - categorical;
-        }
-        return -categorical % (yP.apply((x) => x != 0 ? 1 / x : 1 / 1e-5));
       } else {
-        throw Exception('yPredicted must be a vector');
+        for (int i = 0; i < y.m; i += 1) {
+          categorical[y[0][i].toInt()][i] = 1;
+        }
       }
+      if ((fromSoftmax as bool)) {
+        return yP - categorical;
+      }
+      return -categorical % (yP.apply((x) => x != 0 ? 1 / x : 1e4));
     };
     name = 'sparse_cross_entropy';
   }

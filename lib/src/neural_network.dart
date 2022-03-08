@@ -25,11 +25,11 @@ import 'optimizer.dart';
 /// ```dart
 /// NeuralNetwork nnClasses = NeuralNetwork(784, // input length of 28 by 28 image
 ///   [
-///     Normalization(), // preprocess normalization of data
+///     LayerNormalization(), // preprocess normalization of data records
 ///     Dense(128, activation: Activation.elu()), // 1st hidden layer
 ///     Dense(32, activation: Activation.leakyReLU()), // 2nd hidden layer
 ///     // ...
-///     Normalization(),
+///     LayerNormalization(),
 ///     Dense(10, activation: Activation.softmax()) // output layer for ten classes
 ///   ],
 ///   loss: Loss.mse(), /// for sparse can be [Loss.sparseCrossEntropy()]
@@ -39,12 +39,12 @@ import 'optimizer.dart';
 /// NeuralNetwork nnRegression = NeuralNetwork(10, // input length of customer features
 ///   [
 ///     Dense(32, activation: Activation.elu()), // hidden layer
-///     Normalization()
+///     LayerNormalization()
 ///     Dense(1, activation: Activation.softmax()) // output layer
 ///   ],
 ///   loss: Loss.mae(),
 ///   optimizer: SGD(learningRate: 0.3, momentum: 0),
-///   useAccuracyMetric: false) /// use [false] for regression task
+///   useAccuracyMetric: false) /// use [false] for regression tasks
 /// ```
 class NeuralNetwork extends Model {
   late String name;
@@ -55,6 +55,7 @@ class NeuralNetwork extends Model {
   late bool _useAccuracy;
   double _accuracy = 0;
   late bool _isSparse;
+  Map<String, List<double>>? _history;
 
   /// - `inputLenght` - Lenght of the input data List
   /// - `layers` - List of [Layer] with lenght >= 1
@@ -86,95 +87,100 @@ class NeuralNetwork extends Model {
     }
   }
 
-  /// Check if predicted [yP] class is equal th the real [y] class
-  bool _trueProbs(Matrix y, Matrix yP) {
-    if (_isSparse) {
-      return y[0][0] == _toSparseFromProbs(yP.flattenList());
+  double _batchAccuracy(Matrix y, Matrix yP) {
+    int truePositive = 0;
+    for (int i = 0; i < y.m; i += 1) {
+      truePositive += (_isSparse ? y[i][0] : _whichMax(y.getColumn(i))) == _whichMax(yP.getColumn(i)) ? 1 : 0;
     }
-    return _toSparseFromProbs(y.flattenList()) ==
-        _toSparseFromProbs(yP.flattenList());
+    return truePositive / y.m;
   }
 
   /// Return index of the max element of [probs]
   ///
-  /// Used for accuracy matric for classification models
-  int _toSparseFromProbs(List<double> probs) {
-    final max = probs.reduce(math.max);
-    return probs.indexOf(max);
+  /// Used for accuracy metric for classification models
+  int _whichMax(Matrix probs) {
+    final max = probs.flattenList().reduce(math.max);
+    return probs.flattenList().indexOf(max);
   }
 
   /// Train step function
-  /// - feed data to the NeuralNetwork (forward movement)
+  /// - feed data batch to the NeuralNetwork
   /// - compute and update loss
   /// - call gradients calculation
-  /// - call optimizers logic
-  void _trainStep(List<double> x, List<double> y) {
-    Matrix yTrue = Matrix.column(y);
-    Matrix yPredicted = layers[0].act(x);
+  /// - call optimizer to update weights
+  void _trainStep(List<List<double>> x, List<List<double>> y) {
+    Matrix yTrueBatch = Matrix.fromLists(y).T;
+    Matrix yPredictedBatch = layers[0].act(x);
     for (int i = 1; i < layers.length; i += 1) {
-      yPredicted = layers[i].act(yPredicted, train: true);
+      yPredictedBatch = layers[i].act(yPredictedBatch, train: true);
     }
-    _meanLoss += loss.function(yTrue, yPredicted);
+    _meanLoss += loss.function(yTrueBatch, yPredictedBatch);
     if (_useAccuracy) {
-      _accuracy += _trueProbs(yTrue, yPredicted) ? 1 : 0;
+      _accuracy += _batchAccuracy(yTrueBatch, yPredictedBatch);
     }
     var gradients = NablaOperator.gradients(
         layers.where((layer) => layer.trainable).toList(),
-        loss.dfunction(yTrue, yPredicted));
-    optimizer.applyGradients(
-        gradients, layers.where((layer) => layer.trainable).toList());
+        loss.dfunction(yTrueBatch, yPredictedBatch));
+    optimizer.applyGradients(gradients, layers.where((layer) => layer.trainable).toList());
   }
 
   /// Trainig function of the NeuralNetwork
-  void _fit(List<List<double>> x, List<List<double>> y,
-      {int epochs = 1, bool verbose = true}) {
+  Map<String, List<double>>? _fit(List<List<double>> x, List<List<double>> y, {int epochs = 1, int batchSize = 1, bool verbose = true}) {
     assert(x.length == y.length);
-    final percent = x.length;
+    final generalCard = x.length;
+    assert(batchSize <= generalCard);
     Duration meanTrainStepTime;
     DateTime tic;
     DateTime toc;
-    for (int i = 0; i < epochs; i += 1) {
+    _history = {'$loss' : List<double>.filled(epochs, -0)};
+    if (_useAccuracy) {
+      _history?.addAll({'accuracy': List<double>.filled(epochs, -0)});
+    }
+    final steps = generalCard ~/ batchSize + (generalCard % batchSize == 0 ? 0 : 1);
+    for (int epoch = 0; epoch < epochs; epoch += 1) {
       _meanLoss = 0;
       _accuracy = 0;
       meanTrainStepTime = Duration();
-      for (int j = 0; j < percent; j += 1) {
+      for (int j = 1; j <= steps; j += 1) {
         tic = DateTime.now();
-        _trainStep(x[j], y[j]);
+        if (j == steps) {
+          _trainStep(x.sublist(batchSize * (j-1)), y.sublist(batchSize * (j-1)));
+        }
+        else {
+          _trainStep(x.sublist(batchSize * (j-1), batchSize * j), y.sublist(batchSize * (j-1), batchSize * j));
+        }
         toc = DateTime.now();
         meanTrainStepTime += toc.difference(tic);
         if (verbose && stdout.hasTerminal) {
-          stdout.write('epoch ${i + 1}/$epochs |' +
-              ((j + 1) / percent * 100).toStringAsFixed(2) +
-              '%| -> '
-                  'mean secs per train step: ' +
-              (meanTrainStepTime.inSeconds / (j + 1)).toStringAsFixed(5) +
-              's, '
-                  'mean loss [$loss]: ' +
-              (_meanLoss / (j + 1)).toStringAsFixed(6) +
-              (_useAccuracy
-                  ? ', accuracy: ' +
-                      (_accuracy / (j + 1) * 100).toStringAsFixed(2) +
-                      '%'
-                  : '') +
-              '\r');
+          stdout.write('epoch ${epoch + 1}/$epochs |$j/$steps| -> mean time per batch: ' +
+            (meanTrainStepTime.inMilliseconds / j).toStringAsFixed(2) + 'ms, '
+            'mean loss [$loss]: ' +
+            (_meanLoss / j).toStringAsFixed(6) +
+            (_useAccuracy ?
+              ', mean accuracy: ' + (_accuracy / (j) * 100).toStringAsFixed(2) +
+              '%' : '') +
+            '\r'
+          );
         }
       }
       if (verbose) {
-        if (stdout.hasTerminal) {
-          stdout.write('epoch ${i + 1}/$epochs |100%| -> '
-                  'mean secs per train step: ' +
-              (meanTrainStepTime.inSeconds / (percent)).toStringAsFixed(5) +
-              's, '
-                  'mean loss [$loss]: ' +
-              (_meanLoss / (percent)).toStringAsFixed(6) +
-              (_useAccuracy
-                  ? ', accuracy: ' +
-                      (_accuracy / (percent) * 100).toStringAsFixed(2) +
-                      '%'
-                  : '') +
-              '\r');
-        } else {
+        if (!stdout.hasTerminal) {
+          stdout.write('epoch ${epoch + 1}/$epochs |$steps/$steps| -> mean time per batch: ' +
+            (meanTrainStepTime.inMilliseconds / steps).toStringAsFixed(2) + 'ms, '
+            'mean loss [$loss]: ' +
+            (_meanLoss / steps).toStringAsFixed(6) +
+            (_useAccuracy ?
+              ', mean accuracy: ' + (_accuracy / steps * 100).toStringAsFixed(2) +
+              '%' : '') +
+            '\r'
+          );
+        }
+        else {
           stdout.writeln();
+        }
+        _history?['$loss']?[epoch] = _meanLoss / steps;
+        if (_useAccuracy) {
+          _history?['accuracy']?[epoch] = _accuracy / steps * 100;
         }
       }
     }
@@ -182,6 +188,7 @@ class NeuralNetwork extends Model {
     for (Layer layer in layers) {
       layer.clear();
     }
+    return _history;
   }
 
   /// Call trainig (or fitting) process of [this] NeuralNetwork over given [x] and [y]
@@ -190,7 +197,9 @@ class NeuralNetwork extends Model {
   ///
   /// `y` - Target value(s)
   ///
-  /// `epochs` - The number of iterations (repetitions) of runing backpropagation over given [x] and [y]
+  /// `epochs` - |hyperparam| - The number of iterations (repetitions) of runing backpropagation over given [x] and [y]
+  /// 
+  /// `batchSize` - |hyperparam| - The cardinality of one mini-batch, should be less then [x.length]
   ///
   /// `verbose` - Write logs to the stdout
   ///
@@ -210,9 +219,11 @@ class NeuralNetwork extends Model {
   /// ], loss: Loss.mse(), optimizer: SGD(learningRate: 0.2, momentum: 0));
   ///
   /// /// `fiting process`
-  /// nn.fit(x, y, epochs: 100, verbose: true);
-  /// // print 100 messages like that:
-  /// // epoch 14/100 |100.00%| -> mean secs per train step: 0.00000s, mean loss [mse]: 0.010607
+  /// var history = nn.fit(x, y, epochs: 50, batchSize: 1, verbose: true);
+  /// // prints 50 messages like that:
+  /// // epoch 13/50 |4/4| -> mean time per batch: 0.00ms, mean loss [mse]: 0.029751
+  /// 
+  /// print(history); // Output: {mse: [3.741039311383735, 3.5163661460239033, ...., 3.70640438723175e-15]} 
   ///
   /// //testing process
   /// final xTest = [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
@@ -224,71 +235,84 @@ class NeuralNetwork extends Model {
   /// final predicted = nn.predict([[1.0, 0.0, 1.0]]);
   /// print(predicted);
   /// ```
-  void fit(List<List<double>> x, List<List<double>> y,
-      {int epochs = 1, bool verbose = false}) {
-    _fit(x, y, epochs: epochs, verbose: verbose);
+  Map<String, List<double>>? fit(List<List<double>> x, List<List<double>> y, {int epochs = 1, int batchSize = 1, bool verbose = false}) {
+    return _fit(x, y, epochs: epochs, batchSize: batchSize, verbose: verbose);
   }
 
   /// Eval step function:
-  /// - feed data to the NeuralNetwork
+  /// - feed data ифеср to the NeuralNetwork
   /// - compute and update loss
-  void _evalStep(List<double> x, List<double> y) {
-    Matrix yTrue = Matrix.column(y);
-    Matrix yPredicted = layers[0].act(x);
+  void _evalStep(List<List<double>> x, List<List<double>> y) {
+    Matrix yTrueBatch = Matrix.fromLists(y).T;
+    Matrix yPredictedBatch = layers[0].act(x);
     for (int i = 1; i < layers.length; i += 1) {
-      yPredicted = layers[i].act(yPredicted, train: true);
+      yPredictedBatch = layers[i].act(yPredictedBatch, train: false);
     }
-    _meanLoss += loss.function(yTrue, yPredicted);
+    _meanLoss += loss.function(yTrueBatch, yPredictedBatch);
     if (_useAccuracy) {
-      _accuracy += _trueProbs(yTrue, yPredicted) ? 1 : 0;
+      _accuracy += _batchAccuracy(yTrueBatch, yPredictedBatch);
     }
   }
 
   /// Evaluation (testing) function of the NeuralNetwork
-  Map<String, double> _evaluate(List<List<double>> x, List<List<double>> y,
-      {bool verbose = true}) {
-    _meanLoss = 0;
-    _accuracy = 0;
-    final percent = x.length;
+  Map<String, double> _evaluate(List<List<double>> x, List<List<double>> y, {int batchSize = 1, bool verbose = true}) {
+    final generalCard = x.length;
+    assert(batchSize <= generalCard);
     Duration meanTrainStepTime = Duration();
     DateTime tic;
     DateTime toc;
-    for (int j = 0; j < percent; j += 1) {
+    _meanLoss = 0;
+    _accuracy = 0;
+    final steps = generalCard ~/ batchSize + (generalCard % batchSize == 0 ? 0 : 1);
+    for (int j = 1; j <= steps; j += 1) {
       tic = DateTime.now();
-      _evalStep(x[j], y[j]);
+      if (j == steps) {
+          _evalStep(x.sublist(batchSize * (j-1)), y.sublist(batchSize * (j-1)));
+        }
+        else {
+          _evalStep(x.sublist(batchSize * (j-1), batchSize * j), y.sublist(batchSize * (j-1), batchSize * j));
+        }
       toc = DateTime.now();
       meanTrainStepTime += toc.difference(tic);
-      if (verbose) {
-        stdout.write('evaluating ${j + 1}/$percent |' +
-            ((j + 1) / percent * 100).toStringAsFixed(2) +
-            '%| -> '
-                'mean secs per test step: ' +
-            (meanTrainStepTime.inSeconds / (j + 1)).toStringAsFixed(5) +
-            's, '
-                'mean loss [$loss]: ' +
-            (_meanLoss / (j + 1)).toStringAsFixed(6) +
-            (_useAccuracy
-                ? ', accuracy: ' +
-                    (_accuracy / (j + 1) * 100).toStringAsFixed(2) +
-                    '%'
-                : '') +
-            '\r');
+      if (verbose && stdout.hasTerminal) {
+        stdout.write('evaluating batch $j/$steps -> '
+          'mean time per batch: ' +
+          (meanTrainStepTime.inMilliseconds / j).toStringAsFixed(2) + 'ms, '
+          'mean loss [$loss]: ' +
+          (_meanLoss / j).toStringAsFixed(6) +
+          (_useAccuracy ?
+            ', mean accuracy: ' + (_accuracy / j * 100).toStringAsFixed(2) +
+            '%' : '') +
+          '\r'
+        );
       }
     }
     if (verbose) {
-      stdout.writeln();
+      stdout.hasTerminal ? 
+      stdout.writeln() :
+      stdout.writeln('evaluating batch $steps/$steps -> '
+          'mean time per batch: ' +
+          (meanTrainStepTime.inMilliseconds / steps).toStringAsFixed(2) + 'ms, '
+          'mean loss [$loss]: ' +
+          (_meanLoss / steps).toStringAsFixed(6) +
+          (_useAccuracy ?
+            ', mean accuracy: ' + (_accuracy / steps * 100).toStringAsFixed(2) +
+            '%' : '')
+        );
     }
 
     return _useAccuracy
-        ? {'mean $loss': _meanLoss / percent, 'accuracy': _accuracy / percent}
-        : {'mean $loss': _meanLoss / percent};
+        ? {'mean $loss': _meanLoss / steps, 'mean accuracy': _accuracy / steps}
+        : {'mean $loss': _meanLoss / steps};
   }
 
-  /// Call evaluating or testing process of [this] NeuralNetwork
+  /// Call evaluating or testing process of [this] NeuralNetwork on the given batches
   ///
   /// `x` - Input data (features)
   ///
   /// `y` - Target value(s)
+  /// 
+  /// `batchSize` - The cardinality of one mini-batch, should be less then [x.length]
   ///
   /// `verbose` - Write logs to the stdout
   ///
@@ -306,53 +330,39 @@ class NeuralNetwork extends Model {
   ///   Dense(1, activation: Activation.relu()) // output layer
   /// ], loss: Loss.mse(), optimizer: SGD(learningRate: 0.2, momentum: 0));
   ///
-  /// /// fiting process
-  /// nn.fit(x, y, epochs: 100, verbose: true);
+  /// /// `fiting process`
+  /// var history = nn.fit(x, y, epochs: 50, batchSize: 1, verbose: true);
+  /// print(history);
   ///
-  /// /// `testing process`
+  /// //testing process
   /// final xTest = [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
   /// final yTest = [[1.0], [2.0]];
-  ///
   /// final param = nn.evaluate(xTest, yTest, verbose: true);
-  /// // print message like:
-  /// // evaluating 2/2 |100.00%| -> mean secs per test step: 0.00000s, mean loss [mse]: 0.003051
-  /// print(param); // output: {mean mse: 0.0030511005740773813}
+  /// // evaluating batch 2/2 -> mean time per batch: 0.00ms, mean loss [mse]: 0.003051
+  /// print(param); // Output: {mean mse: 0.0030511005740773813}
   ///
   /// // use network for prediction
   /// final predicted = nn.predict([[1.0, 0.0, 1.0]]);
   /// print(predicted);
   /// ```
-  Map<String, double> evaluate(List<List<double>> x, List<List<double>> y,
-      {bool verbose = true}) {
-    return _evaluate(x, y, verbose: verbose);
-  }
-
-  /// Prediction step Function
-  Matrix _predictStep(List<double> data, [int from = 1, int to = -1]) {
-    Matrix result = layers[0].act(data);
-    if (to == -1) {
-      for (Layer layer in layers.sublist(from)) {
-        result = layer.act(result);
-      }
-    } else {
-      for (Layer layer in layers.sublist(from, to + 1)) {
-        result = layer.act(result);
-      }
-    }
-    return result;
+  Map<String, double> evaluate(List<List<double>> x, List<List<double>> y, {int batchSize = 1, bool verbose = true}) {
+    return _evaluate(x, y, batchSize: batchSize, verbose: verbose);
   }
 
   /// Prediction function for using of [this] NeuralNetwork
-  List<Matrix> _predict(List<List<double>> data) {
-    return List<Matrix>.generate(
-        data.length, (index) => _predictStep(data[index]));
+  Matrix _predict(List<List<double>> data) {
+    Matrix result = layers[0].act(data);
+    for (Layer layer in layers.sublist(1)) {
+      result = layer.act(result);
+    }
+    return result.T;
   }
 
-  /// Call prediction process for [this] NeuralNetwork
+  /// Call prediction process for [this] NeuralNetwork on the given input data
   ///
-  /// `inputs` - data for the [neuralNetwork]
+  /// `inputs` - data for the [NeuralNetwork]
   ///
-  /// Return [List<Matrix>] with prediction for each input [List] from [inputs]
+  /// Return [List<List<double>>] with prediction for each input [List] from [inputs]
   ///
   /// Example:
   /// ```dart
@@ -366,20 +376,22 @@ class NeuralNetwork extends Model {
   ///   Dense(1, activation: Activation.relu()) // output layer
   /// ], loss: Loss.mse(), optimizer: SGD(learningRate: 0.2, momentum: 0));
   ///
-  /// /// fiting process
-  /// nn.fit(x, y, epochs: 100, verbose: true);
+  /// // fiting process
+  /// var history = nn.fit(x, y, epochs: 50, batchSize: 1, verbose: true);
+  /// print(history); 
   ///
-  /// /// testing process
+  /// // testing process
   /// final xTest = [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
   /// final yTest = [[1.0], [2.0]];
   /// final param = nn.evaluate(xTest, yTest, verbose: true);
+  /// print(param);
   ///
-  /// /// `use network for prediction`
+  /// // use network for prediction
   /// final predicted = nn.predict([[1.0, 0.0, 1.0]]);
-  /// print(predicted); /// `matrix 1⨯1 [[1.9687742233004546]] - pretty close to 2`
+  /// print(predicted); // Output: [[1.9687742233004546]] ~ there are two '1' in the list, which is pretty close to the ground truth
   /// ```
-  List<Matrix> predict(List<List<double>> inputs) {
-    return _predict(inputs);
+  List<List<double>> predict(List<List<double>> inputs) {
+    return _predict(inputs).matrix;
   }
 
   /// Save weights and biases of trainable layers of [this] NeuralNetwork to the `$path/model_weights.bin` file
@@ -392,7 +404,7 @@ class NeuralNetwork extends Model {
   /// final nn = NeuralNetwork(10,
   ///   [
   ///     Dense(64, activation: Activation.elu()),
-  ///     Normalization(),
+  ///     LayerNormalization(),
   ///     Dense(3, activation: Activation.softmax())
   ///   ], loss: Loos.mse());
   ///
@@ -402,7 +414,7 @@ class NeuralNetwork extends Model {
   /// final nn2 = NeuralNetwork(10,
   ///   [
   ///     Dense(64, activation: Activation.elu()),
-  ///     Normalization(),
+  ///     LayerNormalization(),
   ///     Dense(3, activation: Activation.softmax())
   ///   ], loss: Loos.mse());
   ///
@@ -446,7 +458,7 @@ class NeuralNetwork extends Model {
   /// final nn = NeuralNetwork(10,
   ///   [
   ///     Dense(64, activation: Activation.elu()),
-  ///     Normalization(),
+  ///     LayerNormalization(),
   ///     Dense(3, activation: Activation.softmax())
   ///   ], loss: Loos.mse());
   ///
@@ -456,7 +468,7 @@ class NeuralNetwork extends Model {
   /// final nn2 = NeuralNetwork(10,
   ///   [
   ///     Dense(64, activation: Activation.elu()),
-  ///     Normalization(),
+  ///     LayerNormalization(),
   ///     Dense(3, activation: Activation.softmax())
   ///   ], loss: Loos.mse());
   ///
@@ -490,7 +502,7 @@ class NeuralNetwork extends Model {
     if (!binSerializationFile.existsSync()) {
       _loadWeightsFromBytes(binSerializationFile.readAsBytesSync().buffer);
     } else {
-      throw Exception("Directory $path don't contains model_weights.bin file");
+      throw Exception("Directory $path doesn't contain model_weights.bin file");
     }
   }
 
