@@ -44,8 +44,7 @@ class SGD extends Optimizer {
         }
         layers[i].w = layers[i].w! - gradients[i][1].scaled(learningRate);
       }
-    }
-    else if (_previuosDelta == null) {
+    } else if (_previuosDelta == null) {
       _previuosDelta =
           List<Matrix>.filled(gradients.length, Matrix.zero(n: 0, m: 0));
       for (int i = 0; i < layers.length; i += 1) {
@@ -55,8 +54,7 @@ class SGD extends Optimizer {
         _previuosDelta![i] = gradients[i][1]..scale(learningRate);
         layers[i].w = layers[i].w! - gradients[i][1];
       }
-    }
-    else {
+    } else {
       for (int i = 0; i < layers.length; i += 1) {
         if (layers[i].useBiases) {
           layers[i].b = layers[i].b! - gradients[i][0].scaled(biasLearningRate);

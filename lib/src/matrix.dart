@@ -198,18 +198,16 @@ class Matrix {
 
   /// Return [Matrix.column] of sums of the elements of [this]
   /// reduced by `rows` (if [axis] is 0) or `columns` (if [axis] is 1)
-  /// 
+  ///
   /// Return [Matrix.column] for row-wise reduction and [Matrix.row] for column-wise reduction
   Matrix reduceSumByAxis(int axis) {
     if (axis == 1) {
       return Matrix.column(
           List<double>.generate(m, (index) => getColumn(index).reduceSum()));
-    }
-    else if (axis == 0) {
+    } else if (axis == 0) {
       return Matrix.column(
           List<double>.generate(n, (index) => getRow(index).reduceSum()));
-    }
-    else {
+    } else {
       throw Exception('Axis error: axis shoud be 0 or 1');
     }
   }
@@ -220,12 +218,10 @@ class Matrix {
     if (axis == 1) {
       return Matrix.column(
           List<double>.generate(m, (index) => getColumn(index).reduceMean()));
-    }
-    else if (axis == 0) {
+    } else if (axis == 0) {
       return Matrix.column(
           List<double>.generate(n, (index) => getRow(index).reduceMean()));
-    }
-    else {
+    } else {
       throw Exception('Axis error: axis shoud be 0 or 1');
     }
   }
@@ -238,11 +234,11 @@ class Matrix {
         str += '$row\n';
       }
       str = str.substring(0, str.length - 1) + ']';
-    }
-    else {
+    } else {
       str += _base[0][0].toString() +
           '....' +
-          _base[n - 1][m - 1].toString() + ']';
+          _base[n - 1][m - 1].toString() +
+          ']';
     }
     return str;
   }

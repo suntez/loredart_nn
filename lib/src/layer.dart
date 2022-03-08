@@ -126,10 +126,10 @@ class Dense extends Layer {
   @override
   Matrix act(dynamic inputs, {bool train = false}) {
     if (!wasInitialized) {
-      throw Exception(
-        'Not initialized Layer.\nCall init() before act()');
+      throw Exception('Not initialized Layer.\nCall init() before act()');
     }
-    final data = MatrixOperation.addVectorToEachColumn(w! * (inputs as Matrix), b!);
+    final data =
+        MatrixOperation.addVectorToEachColumn(w! * (inputs as Matrix), b!);
     if (train) {
       inputDataBuffer = inputs;
       activatedDerivativeBuffer = activation.dfunction(data);
@@ -147,7 +147,7 @@ enum NormalizationType { minMax, zScore }
 
 /// Data normalization [Layer].
 /// Normalize each record in batch independently.
-/// 
+///
 /// Can be seen as column-wise normalization.
 ///
 /// For now supports two different normalization types:
@@ -173,16 +173,16 @@ enum NormalizationType { minMax, zScore }
 /// print(zScore.act(data).flattenRow()); // transpose result
 /// //Output: matrix 1⨯5 [[-1.4142135, -0.707106781, 0.0, 0.707106781, 1.4142135]]
 /// ```
-/// 
+///
 /// For `batchSize` > 1 in NeuralNetwork these [Layer] applies normalization logic for each column of bacth matrix
-/// 
+///
 /// Example:
 /// ```dart
 /// final batch = Matrix.fromLists(
 ///     [[-4, -1, 0, 2, 3], // first data record
 ///      [-4, -2, 1, 2, 3]] // second data record
 ///   ).T; // transpose so records are represented as columns
-/// 
+///
 ///   print(batch);
 ///   // Output:
 ///   // matrix 5⨯2
@@ -192,10 +192,10 @@ enum NormalizationType { minMax, zScore }
 ///   // [2.0, 2.0]
 ///   // [3.0, 3.0]]
 ///
-/// 
+///
 ///   final minmax = LayerNormalization(type: NormalizationType.minMax);
 ///   minmax.init(5);
-/// 
+///
 ///   var result = minmax.act(batch);
 ///   print(result);
 ///   // Output:
@@ -219,16 +219,14 @@ class LayerNormalization extends Layer {
       final r = range(tempColumn);
       if (r[0] == r[1]) {
         tempColumn.scale(1 / r[0]);
-      }
-      else {
+      } else {
         tempColumn
           ..addScalar(-r[0])
           ..scale(1 / (r[1] - r[0]));
       }
       if (i == 0) {
         result = tempColumn;
-      }
-      else {
+      } else {
         result = MatrixOperation.columnBind(result, tempColumn);
       }
     }
@@ -242,12 +240,14 @@ class LayerNormalization extends Layer {
     Matrix result = Matrix.zero(n: 0, m: 0);
     for (int i = 0; i < data.m; i += 1) {
       Matrix tempColumn = data.getColumn(i);
-      final sd = math.sqrt(tempColumn.apply((x) => math.pow(x - mean[0][i], 2).toDouble()).reduceMean());
+      final sd = math.sqrt(tempColumn
+          .apply((x) => math.pow(x - mean[0][i], 2).toDouble())
+          .reduceMean());
       if (i == 0) {
         result = tempColumn.addedScalar(-mean[0][i]).scaled(sd);
-      }
-      else {
-        result = MatrixOperation.columnBind(result, tempColumn.addedScalar(-mean[0][i]).scaled(sd));
+      } else {
+        result = MatrixOperation.columnBind(
+            result, tempColumn.addedScalar(-mean[0][i]).scaled(sd));
       }
     }
     return result;

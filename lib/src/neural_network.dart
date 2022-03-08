@@ -90,7 +90,10 @@ class NeuralNetwork extends Model {
   double _batchAccuracy(Matrix y, Matrix yP) {
     int truePositive = 0;
     for (int i = 0; i < y.m; i += 1) {
-      truePositive += (_isSparse ? y[i][0] : _whichMax(y.getColumn(i))) == _whichMax(yP.getColumn(i)) ? 1 : 0;
+      truePositive += (_isSparse ? y[i][0] : _whichMax(y.getColumn(i))) ==
+              _whichMax(yP.getColumn(i))
+          ? 1
+          : 0;
     }
     return truePositive / y.m;
   }
@@ -121,22 +124,25 @@ class NeuralNetwork extends Model {
     var gradients = NablaOperator.gradients(
         layers.where((layer) => layer.trainable).toList(),
         loss.dfunction(yTrueBatch, yPredictedBatch));
-    optimizer.applyGradients(gradients, layers.where((layer) => layer.trainable).toList());
+    optimizer.applyGradients(
+        gradients, layers.where((layer) => layer.trainable).toList());
   }
 
   /// Trainig function of the NeuralNetwork
-  Map<String, List<double>>? _fit(List<List<double>> x, List<List<double>> y, {int epochs = 1, int batchSize = 1, bool verbose = true}) {
+  Map<String, List<double>>? _fit(List<List<double>> x, List<List<double>> y,
+      {int epochs = 1, int batchSize = 1, bool verbose = true}) {
     assert(x.length == y.length);
     final generalCard = x.length;
     assert(batchSize <= generalCard);
     Duration meanTrainStepTime;
     DateTime tic;
     DateTime toc;
-    _history = {'$loss' : List<double>.filled(epochs, -0)};
+    _history = {'$loss': List<double>.filled(epochs, -0)};
     if (_useAccuracy) {
       _history?.addAll({'accuracy': List<double>.filled(epochs, -0)});
     }
-    final steps = generalCard ~/ batchSize + (generalCard % batchSize == 0 ? 0 : 1);
+    final steps =
+        generalCard ~/ batchSize + (generalCard % batchSize == 0 ? 0 : 1);
     for (int epoch = 0; epoch < epochs; epoch += 1) {
       _meanLoss = 0;
       _accuracy = 0;
@@ -144,38 +150,45 @@ class NeuralNetwork extends Model {
       for (int j = 1; j <= steps; j += 1) {
         tic = DateTime.now();
         if (j == steps) {
-          _trainStep(x.sublist(batchSize * (j-1)), y.sublist(batchSize * (j-1)));
-        }
-        else {
-          _trainStep(x.sublist(batchSize * (j-1), batchSize * j), y.sublist(batchSize * (j-1), batchSize * j));
+          _trainStep(
+              x.sublist(batchSize * (j - 1)), y.sublist(batchSize * (j - 1)));
+        } else {
+          _trainStep(x.sublist(batchSize * (j - 1), batchSize * j),
+              y.sublist(batchSize * (j - 1), batchSize * j));
         }
         toc = DateTime.now();
         meanTrainStepTime += toc.difference(tic);
         if (verbose && stdout.hasTerminal) {
-          stdout.write('epoch ${epoch + 1}/$epochs |$j/$steps| -> mean time per batch: ' +
-            (meanTrainStepTime.inMilliseconds / j).toStringAsFixed(2) + 'ms, '
-            'mean loss [$loss]: ' +
-            (_meanLoss / j).toStringAsFixed(6) +
-            (_useAccuracy ?
-              ', mean accuracy: ' + (_accuracy / (j) * 100).toStringAsFixed(2) +
-              '%' : '') +
-            '\r'
-          );
+          stdout.write(
+              'epoch ${epoch + 1}/$epochs |$j/$steps| -> mean time per batch: ' +
+                  (meanTrainStepTime.inMilliseconds / j).toStringAsFixed(2) +
+                  'ms, '
+                      'mean loss [$loss]: ' +
+                  (_meanLoss / j).toStringAsFixed(6) +
+                  (_useAccuracy
+                      ? ', mean accuracy: ' +
+                          (_accuracy / (j) * 100).toStringAsFixed(2) +
+                          '%'
+                      : '') +
+                  '\r');
         }
       }
       if (verbose) {
         if (!stdout.hasTerminal) {
-          stdout.write('epoch ${epoch + 1}/$epochs |$steps/$steps| -> mean time per batch: ' +
-            (meanTrainStepTime.inMilliseconds / steps).toStringAsFixed(2) + 'ms, '
-            'mean loss [$loss]: ' +
-            (_meanLoss / steps).toStringAsFixed(6) +
-            (_useAccuracy ?
-              ', mean accuracy: ' + (_accuracy / steps * 100).toStringAsFixed(2) +
-              '%' : '') +
-            '\r'
-          );
-        }
-        else {
+          stdout.write(
+              'epoch ${epoch + 1}/$epochs |$steps/$steps| -> mean time per batch: ' +
+                  (meanTrainStepTime.inMilliseconds / steps)
+                      .toStringAsFixed(2) +
+                  'ms, '
+                      'mean loss [$loss]: ' +
+                  (_meanLoss / steps).toStringAsFixed(6) +
+                  (_useAccuracy
+                      ? ', mean accuracy: ' +
+                          (_accuracy / steps * 100).toStringAsFixed(2) +
+                          '%'
+                      : '') +
+                  '\r');
+        } else {
           stdout.writeln();
         }
         _history?['$loss']?[epoch] = _meanLoss / steps;
@@ -198,7 +211,7 @@ class NeuralNetwork extends Model {
   /// `y` - Target value(s)
   ///
   /// `epochs` - |hyperparam| - The number of iterations (repetitions) of runing backpropagation over given [x] and [y]
-  /// 
+  ///
   /// `batchSize` - |hyperparam| - The cardinality of one mini-batch, should be less then [x.length]
   ///
   /// `verbose` - Write logs to the stdout
@@ -222,8 +235,8 @@ class NeuralNetwork extends Model {
   /// var history = nn.fit(x, y, epochs: 50, batchSize: 1, verbose: true);
   /// // prints 50 messages like that:
   /// // epoch 13/50 |4/4| -> mean time per batch: 0.00ms, mean loss [mse]: 0.029751
-  /// 
-  /// print(history); // Output: {mse: [3.741039311383735, 3.5163661460239033, ...., 3.70640438723175e-15]} 
+  ///
+  /// print(history); // Output: {mse: [3.741039311383735, 3.5163661460239033, ...., 3.70640438723175e-15]}
   ///
   /// //testing process
   /// final xTest = [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
@@ -235,7 +248,8 @@ class NeuralNetwork extends Model {
   /// final predicted = nn.predict([[1.0, 0.0, 1.0]]);
   /// print(predicted);
   /// ```
-  Map<String, List<double>>? fit(List<List<double>> x, List<List<double>> y, {int epochs = 1, int batchSize = 1, bool verbose = false}) {
+  Map<String, List<double>>? fit(List<List<double>> x, List<List<double>> y,
+      {int epochs = 1, int batchSize = 1, bool verbose = false}) {
     return _fit(x, y, epochs: epochs, batchSize: batchSize, verbose: verbose);
   }
 
@@ -255,7 +269,8 @@ class NeuralNetwork extends Model {
   }
 
   /// Evaluation (testing) function of the NeuralNetwork
-  Map<String, double> _evaluate(List<List<double>> x, List<List<double>> y, {int batchSize = 1, bool verbose = true}) {
+  Map<String, double> _evaluate(List<List<double>> x, List<List<double>> y,
+      {int batchSize = 1, bool verbose = true}) {
     final generalCard = x.length;
     assert(batchSize <= generalCard);
     Duration meanTrainStepTime = Duration();
@@ -263,42 +278,48 @@ class NeuralNetwork extends Model {
     DateTime toc;
     _meanLoss = 0;
     _accuracy = 0;
-    final steps = generalCard ~/ batchSize + (generalCard % batchSize == 0 ? 0 : 1);
+    final steps =
+        generalCard ~/ batchSize + (generalCard % batchSize == 0 ? 0 : 1);
     for (int j = 1; j <= steps; j += 1) {
       tic = DateTime.now();
       if (j == steps) {
-          _evalStep(x.sublist(batchSize * (j-1)), y.sublist(batchSize * (j-1)));
-        }
-        else {
-          _evalStep(x.sublist(batchSize * (j-1), batchSize * j), y.sublist(batchSize * (j-1), batchSize * j));
-        }
+        _evalStep(
+            x.sublist(batchSize * (j - 1)), y.sublist(batchSize * (j - 1)));
+      } else {
+        _evalStep(x.sublist(batchSize * (j - 1), batchSize * j),
+            y.sublist(batchSize * (j - 1), batchSize * j));
+      }
       toc = DateTime.now();
       meanTrainStepTime += toc.difference(tic);
       if (verbose && stdout.hasTerminal) {
         stdout.write('evaluating batch $j/$steps -> '
-          'mean time per batch: ' +
-          (meanTrainStepTime.inMilliseconds / j).toStringAsFixed(2) + 'ms, '
-          'mean loss [$loss]: ' +
-          (_meanLoss / j).toStringAsFixed(6) +
-          (_useAccuracy ?
-            ', mean accuracy: ' + (_accuracy / j * 100).toStringAsFixed(2) +
-            '%' : '') +
-          '\r'
-        );
+                'mean time per batch: ' +
+            (meanTrainStepTime.inMilliseconds / j).toStringAsFixed(2) +
+            'ms, '
+                'mean loss [$loss]: ' +
+            (_meanLoss / j).toStringAsFixed(6) +
+            (_useAccuracy
+                ? ', mean accuracy: ' +
+                    (_accuracy / j * 100).toStringAsFixed(2) +
+                    '%'
+                : '') +
+            '\r');
       }
     }
     if (verbose) {
-      stdout.hasTerminal ? 
-      stdout.writeln() :
-      stdout.writeln('evaluating batch $steps/$steps -> '
-          'mean time per batch: ' +
-          (meanTrainStepTime.inMilliseconds / steps).toStringAsFixed(2) + 'ms, '
-          'mean loss [$loss]: ' +
-          (_meanLoss / steps).toStringAsFixed(6) +
-          (_useAccuracy ?
-            ', mean accuracy: ' + (_accuracy / steps * 100).toStringAsFixed(2) +
-            '%' : '')
-        );
+      stdout.hasTerminal
+          ? stdout.writeln()
+          : stdout.writeln('evaluating batch $steps/$steps -> '
+                  'mean time per batch: ' +
+              (meanTrainStepTime.inMilliseconds / steps).toStringAsFixed(2) +
+              'ms, '
+                  'mean loss [$loss]: ' +
+              (_meanLoss / steps).toStringAsFixed(6) +
+              (_useAccuracy
+                  ? ', mean accuracy: ' +
+                      (_accuracy / steps * 100).toStringAsFixed(2) +
+                      '%'
+                  : ''));
     }
 
     return _useAccuracy
@@ -311,7 +332,7 @@ class NeuralNetwork extends Model {
   /// `x` - Input data (features)
   ///
   /// `y` - Target value(s)
-  /// 
+  ///
   /// `batchSize` - The cardinality of one mini-batch, should be less then [x.length]
   ///
   /// `verbose` - Write logs to the stdout
@@ -345,7 +366,8 @@ class NeuralNetwork extends Model {
   /// final predicted = nn.predict([[1.0, 0.0, 1.0]]);
   /// print(predicted);
   /// ```
-  Map<String, double> evaluate(List<List<double>> x, List<List<double>> y, {int batchSize = 1, bool verbose = true}) {
+  Map<String, double> evaluate(List<List<double>> x, List<List<double>> y,
+      {int batchSize = 1, bool verbose = true}) {
     return _evaluate(x, y, batchSize: batchSize, verbose: verbose);
   }
 
@@ -378,7 +400,7 @@ class NeuralNetwork extends Model {
   ///
   /// // fiting process
   /// var history = nn.fit(x, y, epochs: 50, batchSize: 1, verbose: true);
-  /// print(history); 
+  /// print(history);
   ///
   /// // testing process
   /// final xTest = [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]];

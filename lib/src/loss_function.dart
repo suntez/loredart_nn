@@ -87,7 +87,8 @@ class Loss {
   Loss.crossEntropy() {
     function = (Matrix y, Matrix yP, [dynamic parameter]) {
       return -(y % yP.apply((x) => x != 0 ? math.log(x) : math.log(x + 1e-4)))
-          .reduceSum() / y.m;
+              .reduceSum() /
+          y.m;
     };
     dfunction = (Matrix y, Matrix yP, [dynamic fromSoftmax = false]) {
       if ((fromSoftmax as bool)) {
@@ -124,8 +125,9 @@ class Loss {
         }
       }
       return -(categorical %
-              yP.apply((x) => x != 0 ? math.log(x) : math.log(x + 1e-4)))
-          .reduceSum() / y.m;
+                  yP.apply((x) => x != 0 ? math.log(x) : math.log(x + 1e-4)))
+              .reduceSum() /
+          y.m;
     };
     dfunction = (Matrix y, Matrix yP, [dynamic fromSoftmax = false]) {
       Matrix categorical = Matrix.zero(n: yP.n, m: yP.m);

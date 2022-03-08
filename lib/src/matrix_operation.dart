@@ -50,7 +50,8 @@ class MatrixOperation {
       }
       return resultMatrix;
     } else {
-      throw Exception('Dimensions error: dim(A) != dim(B)  |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
+      throw Exception(
+          'Dimensions error: dim(A) != dim(B)  |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
     }
   }
 
@@ -128,7 +129,8 @@ class MatrixOperation {
       }
       return resultMatrix;
     } else {
-      throw Exception('Dimensions error: A.shape != B.shape  |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
+      throw Exception(
+          'Dimensions error: A.shape != B.shape  |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
     }
   }
 
@@ -145,7 +147,8 @@ class MatrixOperation {
       }
       return resultMatrix;
     } else {
-      throw Exception('Dimensions error: A.shape != B.shape |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
+      throw Exception(
+          'Dimensions error: A.shape != B.shape |(${a.n}, ${a.m}) != (${b.n},${b.m})|');
     }
   }
 
@@ -203,13 +206,12 @@ class MatrixOperation {
         }
       }
       return resultMatrix;
-    }
-    else {
+    } else {
       throw Exception('Dimensions error: A.shape != B.shape');
     }
   }
 
-  /// Return copy of [matrix] where each column where multiplied by [column] with Hadamard product 
+  /// Return copy of [matrix] where each column where multiplied by [column] with Hadamard product
   static Matrix hadamardProductToEachColumn(Matrix matrix, Matrix column) {
     if (column.m == 1 && matrix.n == column.n) {
       Matrix resultMatrix = Matrix.zero(n: matrix.n, m: matrix.m);
@@ -219,8 +221,7 @@ class MatrixOperation {
         }
       }
       return resultMatrix;
-    }
-    else {
+    } else {
       throw Exception('Dimensions error: A.shape != B.shape');
     }
   }

@@ -65,9 +65,11 @@ class Activation {
         m.apply((double x) => x / (1 + math.exp(-x)));
     dfunction = (Matrix m, [dynamic param]) {
       final swishMatrix = function(m);
-      return [swishMatrix +
-          (m.apply((double x) => 1 / (1 + math.exp(-x))) %
-              (-swishMatrix.addedScalar(-1)))];
+      return [
+        swishMatrix +
+            (m.apply((double x) => 1 / (1 + math.exp(-x))) %
+                (-swishMatrix.addedScalar(-1)))
+      ];
     };
     name = 'swish';
   }
@@ -133,10 +135,15 @@ class Activation {
         Matrix exps = m.getColumn(i);
         exps = exps.addedScalar(max(exps)).apply(math.exp);
         if (i == 0) {
-          resultMatrix = exps.scaled(1/exps.flattenList().reduce((value, element) => value + element));
-        }
-        else {
-          resultMatrix = MatrixOperation.columnBind(resultMatrix, exps.scaled(1/exps.flattenList().reduce((value, element) => value + element)));
+          resultMatrix = exps.scaled(1 /
+              exps.flattenList().reduce((value, element) => value + element));
+        } else {
+          resultMatrix = MatrixOperation.columnBind(
+              resultMatrix,
+              exps.scaled(1 /
+                  exps
+                      .flattenList()
+                      .reduce((value, element) => value + element)));
         }
       }
       return resultMatrix;
@@ -145,10 +152,10 @@ class Activation {
       final softMatrix = function(m);
       // Jacobian for each (mini)batch sample
       return List<Matrix>.generate(
-        m.m,
-        (index) => Matrix.diag(diag: softMatrix.getColumn(index).flattenList())
-        - softMatrix.getColumn(index) * softMatrix.getColumn(index).T
-      );
+          m.m,
+          (index) =>
+              Matrix.diag(diag: softMatrix.getColumn(index).flattenList()) -
+              softMatrix.getColumn(index) * softMatrix.getColumn(index).T);
     };
     name = 'softmax';
   }
