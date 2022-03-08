@@ -1,7 +1,7 @@
 <div align="right">
 
-**рускій воєнyий корабль, іди нах#й**
-<img src="assets/GloryForUkraineMini.svg" width="25">
+**рускій воєнний корабль, іди нах#й**
+![](assets/GloryForUkraineMini.png)
 
 <div align="left">
 
