@@ -1,98 +1,93 @@
-import 'dart:io' show File;
-
+import 'package:loredart_nn/loredart_nn.dart';
 import 'package:csv/csv.dart' show CsvToListConverter;
 
-import 'package:loredart_nn/loredart_nn.dart';
+import 'dart:io' show File;
+import 'dart:convert';
 
 void main() {
-  List<List<List<double>>> data = createTrainData(CsvToListConverter()
-          .convert(
-            File('example/.csv' //name of the .csv file with data
-                    )
-                .readAsStringSync(),
-            shouldParseNumbers: false,
-          )
-          .sublist(1) // first line of .csv file is column names
-      );
+  // Read training data from csv file
+  List<List<dynamic>> rawData = CsvToListConverter()
+      .convert(
+        File(
+          'some_mnist_data.csv',
+        ).readAsStringSync(),
+        shouldParseNumbers: true,
+      )
+      .sublist(1); // skipping columns names
 
-  /// spliting data into train and test lists
-  List<List<double>> xTrain = data[0].sublist(0, 30000);
-  List<List<double>> yTrain = data[1].sublist(0, 30000);
-  List<List<double>> xTest = data[0].sublist(30000);
-  List<List<double>> yTest = data[1].sublist(30000);
-  data.clear();
+  // Convert csv content to Tensor and plit it into features and targets
+  var (x, y) = splitToFeaturesAndTargets(
+    Tensor.constant(rawData),
+    targetIndices: [0], // first column is a MNIST class-digit
+    featuresDType: DType.float32,
+  );
+  y = squeeze(y);
 
-  /// [NeuralNetwork] with 1 hidden layer and crossEntropy
-  NeuralNetwork ceMnistDNN = NeuralNetwork(
-      784, // length of one input record = 784 pixels
-      [
-        Dense(128, activation: Activation.softplus()), //or leakyReLU or elu
-        LayerNormalization(),
-        Dense(10, activation: Activation.softmax())
-      ],
-      loss:
-          Loss.crossEntropy(), // sparseCrossEntropy can be used for sparse data
-      optimizer: SGD(learningRate: 0.01, momentum: 0.9),
-      useAccuracyMetric: true);
+  // Train-test split
+  int testSize = (x.shape[0] * 0.2).ceil();
 
-  var history =
-      ceMnistDNN.fit(xTrain, yTrain, epochs: 4, batchSize: 256, verbose: true);
-  // epoch 1/4 |118/118| -> mean time per batch: 388.01ms, mean loss [cross_entropy]: 1.478636, mean accuracy: 68.05%
-  // epoch 2/4 |118/118| -> mean time per batch: 400.87ms, mean loss [cross_entropy]: 0.868227, mean accuracy: 83.50%
-  // epoch 3/4 |118/118| -> mean time per batch: 390.92ms, mean loss [cross_entropy]: 0.691678, mean accuracy: 85.72%
-  // epoch 4/4 |118/118| -> mean time per batch: 386.92ms, mean loss [cross_entropy]: 0.606761, mean accuracy: 86.84%
+  var xTest = slice(x, [0, 0], [testSize, x.shape[1]]);
+  var xTrain = slice(x, [testSize, 0], [x.shape[0], x.shape[1]]);
 
-  print(history);
-  // {cross_entropy: [1.4786360357701471, 0.868226552200313, 0.6916779963409534, 0.6067611970768912],
-  //  accuracy: [68.04819915254238, 83.49995586158192, 85.72342867231639, 86.83902718926552]}
+  var yTest = slice(y, [0], [testSize]);
+  var yTrain = slice(y, [testSize], [y.shape[0]]);
 
-  var metrics =
-      ceMnistDNN.evaluate(xTest, yTest, batchSize: 120, verbose: true);
-  // evaluating batch 100/100 -> mean time per batch: 68.52ms, mean loss [cross_entropy]: 0.574255, mean accuracy: 87.19%
+  // Configure classifier model
+  final model = Model(
+    [Rescale(scale: 1 / 255), Dense(32, activation: Activations.relu), Dense(32, activation: ReLU()), Dense(10)],
+    optimizer: Adam(weightDecay: 1e-4),
+    loss: SparseCategoricalCrossentropy(fromLogits: true),
+    metrics: [Metrics.sparseCategoricalAccuracy],
+    inputShape: [x.shape[-1]], // if we know the input shape - model will be built immediately
+  );
 
-  print(metrics);
-  // {mean cross_entropy: 0.5742549607727949, mean accuracy: 0.8719166666666667}
+  print(model); // if model wan't build no training params statistics will be generated
+  // __________________________________
+  // Layer       Output shape   Param #
+  // ==================================
+  // Rescale-1   [784]          0
+  // Dense-1     [32]           25120
+  // Dense-2     [32]           1056
+  // Dense-3     [10]           330
+  // ==================================
+  // Total trainable params: 26506
+  // __________________________________
 
-  /// [NeuralNetwork] with 2 hidden layers, MSE loss
-  NeuralNetwork mnistDNN = NeuralNetwork(
-      784,
-      [
-        Dense(128, activation: Activation.relu()),
-        LayerNormalization(),
-        Dense(64, activation: Activation.relu()),
-        Dense(10, activation: Activation.linear())
-      ],
-      loss: Loss.mse(),
-      optimizer: SGD(learningRate: 0.05, momentum: 0.8),
-      useAccuracyMetric: true);
+  // Train model
+  final history = model.fit(
+    x: xTrain,
+    y: yTrain,
+    epochs: 2,
+    batchSize: 64,
+    validationData: [xTest, yTest], // for simplicity using test data as val
+  );
+  // With `verbose: true` will see training progress:
+  //  Straining model training
+  //  Epoch 1/2:
+  //  125/125 - [=====] - 6 s - 54 ms per step - loss: 0.6042 - sparse_categorical_accuracy: 0.7402 - val_loss: 0.6465 - val_sparse_categorical_accuracy: 0.7935
+  //  Epoch 2/2:
+  //  125/125 - [=====] - 6 s - 51 ms per step - loss: 0.4763 - sparse_categorical_accuracy: 0.8905 - val_loss: 0.4655 - val_sparse_categorical_accuracy: 0.8647
 
-  var history2 =
-      mnistDNN.fit(xTrain, yTrain, epochs: 3, batchSize: 128, verbose: true);
-  print(history2);
+  print(
+    'History:\n$history',
+  );
+  // {loss: [0.5919618010520935, 0.5008291006088257], sparse_categorical_accuracy: [0.68, 0.888625], val_loss: [0.6536273518577218, 0.467515311203897], val_sparse_categorical_accuracy: [0.8154296875, 0.8603515625]}
 
-  var metrics2 = mnistDNN.evaluate(xTest, yTest, batchSize: 120, verbose: true);
-  print(metrics2);
-}
+  // Evaluate model
+  final evalResults = model.evaluate(x: xTest, y: yTest, batchSize: 128);
+  //  16/16 - [=====] - 0 s - 32 ms per step - loss: 0.4589 - sparse_categorical_accuracy: 0.8615
 
-/// Split data into features (or pixels) `x` and target digits (or classes) `y`, which are One-Hot encoded
-List<List<List<double>>> createTrainData(List<List<dynamic>> data) {
-  List<List<double>> x = [];
-  List<double> y = [];
-  for (var data1 in data) {
-    y.add(double.parse(data1[0].toString()));
-    x.add(
-        data1.sublist(1).map((e) => double.parse(e.toString()) / 255).toList());
-  }
-  return [x, oneHotEncodingForMnist(y)];
-}
+  print('Eval results:\n$evalResults'); // {loss: 0.471101189032197, sparse_categorical_accuracy: 0.8615234382450581}
 
-/// Return One-Hot encoded List for mnist digits
-List<List<double>> oneHotEncodingForMnist(List<double> numbers) {
-  List<List<double>> encoded = [];
-  for (double number in numbers) {
-    List<double> temp = List<double>.filled(10, 0);
-    temp[number.toInt()] = 1;
-    encoded.add(temp);
-  }
-  return encoded;
+  // Save model
+  File f =
+      File('mnist_classifer.json')
+        ..createSync()
+        ..writeAsStringSync(jsonEncode(model.toJson()));
+
+  // Load saved model to use later for predictions
+  final loadedModel = Model.fromJson(jsonDecode(f.readAsStringSync()));
+  final preds = loadedModel.predict(slice(xTest, [0, 0], [4, xTest.shape[-1]]));
+
+  print(argMax(preds, axis: -1)); // smth like [7, 2, 1, 0]
 }

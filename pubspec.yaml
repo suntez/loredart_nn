@@ -1,16 +1,22 @@
 name: loredart_nn
-description: Simple library for creating and training Deep Neural Networks, written in pure Dart
-version: 0.0.2+1
+description: Small package for creating, training and saving neural network, written in pure Dart. Supports MLPs and CNNs.
+version: 2.0.0
+
 homepage: https://github.com/suntez/loredart_nn
 repository: https://github.com/suntez/loredart_nn
 
+publish_to: none
+
 environment:
-  sdk: '>=2.12.0 <3.0.0'
+  sdk: '>=3.7.0 <4.0.0'
 
 
 dependencies:
-  normal: ^0.6.0
+  loredart_tensor: '>=1.1.0'
+  dolumns: ^2.0.1
+
 
 dev_dependencies:
   lints: ^1.0.0
-  csv: ^5.0.1
+  test: ^1.16.0
+  csv: ^6.0.0
