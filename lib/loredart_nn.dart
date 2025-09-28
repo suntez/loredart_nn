@@ -1,5 +1,3 @@
-library loredart_nn;
-
 export 'package:loredart_tensor/loredart_tensor.dart';
 
 export 'src/metrics_and_losses/losses.dart';
