@@ -1,6 +1,6 @@
 name: loredart_nn
 description: Small package for creating, training and saving neural network, written in pure Dart. Supports MLPs and CNNs.
-version: 2.0.0
+version: 2.0.1
 
 homepage: https://github.com/suntez/loredart_nn
 repository: https://github.com/suntez/loredart_nn

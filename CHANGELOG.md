@@ -1,3 +1,6 @@
+## 2.0.1
+- Small fixes in README and comments
+
 ## 2.0.0
 - Fully rewritten logic based on new Tensors and new backpropagation logic (implicit linear computational graph)
 - Extended supported optimizers (with weight decay), layers, activation functions etc

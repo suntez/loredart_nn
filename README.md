@@ -190,15 +190,17 @@ As for optimizers, right now 4 are available, and all of them support _weight de
 
 ## Information about implementation and limitations
 
-First of all, the library is not efficient and training (esp with Conv layer) can be very slow:
+1. First of all, the library is not efficient and training (esp with Conv layer) can be very slow:
  - there is no parallelism for CPU training
  - there is GPU support
  - the gradients are computed via implicitly linear computational graph that is rebuilt for each training step
 
-Second point - even if it's possible to extend the library to more modalities and support more interesting Layers, the slow training will kill the joy of using the library. But maybe later libraries (nn or tensor) will be updated to support some kind of computation acceleration and more Neural Networks will be supported.
+2. Second point - even if it's possible to extend the library to more modalities and support more interesting Layers, the slow training will kill the joy of using the library. But maybe later libraries (nn or tensor) will be updated to support some kind of computation acceleration and more Neural Networks will be supported.
 
-Even so, almost all of the public API is fully documented, so one can easily write their own `Layer`s and `Activation`s or other components if needed.
+3. Even so, almost all of the public API is fully documented, so one can easily write their own `Layer`s and `Activation`s or other components if needed.
 
-Other pain point - is working with training data. THis package does not provide any good utilities for loading datasets as `Tensor`s, supported by Models, so it's on user to pre-load data from files. See example code for one of the ways to load data from csv and converting it into `Tensor`s.
+4. Other pain point - is working with training data. This package does not provide any good utilities for loading datasets as `Tensor`s, supported by Models, so it's on user to pre-load data from files. See example code for one of the ways to load data from csv and converting it into `Tensor`s.
+
+
 ---
 > ![](assets/GloryForUkraineMini.png) If you would like to support UKRAINE with a donation, visit [**UNITED24**](https://u24.gov.ua/) for more info. Thanks.

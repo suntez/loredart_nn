@@ -5,7 +5,7 @@ import 'dart:io' show File;
 import 'dart:convert';
 
 void main() {
-  // Read training data from csv file
+  // Read training data from csv file (e.g. taken from https://github.com/phoebetronic/mnist)
   List<List<dynamic>> rawData = CsvToListConverter()
       .convert(
         File(
